@@ -511,23 +511,35 @@ sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
 void
 sys_mbox_free(sys_mbox_t *mbox)
 {
+    u32_t i;
   /* There should not be any messages waiting (if there are it is a bug).  If
      any are waiting, increment the mailbox error count. */
 #if RTOS_FREERTOS
-  if(uxQueueMessagesWaiting(mbox->queue) != 0) {
+    if(uxQueueMessagesWaiting(mbox->queue) != 0) {
 #endif /* RTOS_FREERTOS */
-
+ 
 #if SYS_STATS
     STATS_INC(sys.mbox.err);
 #endif /* SYS_STATS */
   }
-
+ 
+    /* Find a mailbox that is in use. */
+    for(i = 0; i < SYS_MBOX_MAX; i++) {
+      if(mboxes[i].queue == mbox->queue) {
+            break;
+      }
+    }
+ 
+  /* Delete Sem , By Jin */
+    vQueueDelete(mbox->queue);
   /* Clear the queue handle. */
-  mbox->queue = 0;
-
+    mbox->queue = 0;
+  /* Clear the queue handle in global array. */
+    mboxes[i].queue = 0;
+ 
   /* Update the mailbox statistics. */
 #if SYS_STATS
-   STATS_DEC(sys.mbox.used);
+    STATS_DEC(sys.mbox.used);
 #endif /* SYS_STATS */
 }
 
