@@ -307,13 +307,27 @@ void sys_sem_set_invalid(sys_sem_t *sem) {
 void
 sys_sem_free(sys_sem_t *sem)
 {
-  /* Clear the queue handle. */
-  sem->queue = 0;
-
-  /* Update the semaphore statistics. */
-#if SYS_STATS
-  STATS_DEC(sys.sem.used);
-#endif /* SYS_STATS */
+  u32_t i;
+ 
+    /* Find a semaphore that is in use. */
+    for(i = 0; i < SYS_SEM_MAX; i++) {
+        if(sems[i].queue == sem->queue) {
+          break;
+        }
+    }
+    
+    /* Delete Sem , By Jin */
+    vQueueDelete(sem->queue);
+    
+    /* Clear the queue handle. */
+    sem->queue = 0;
+    /* Clear the queue handle in global array. */
+    sems[i].queue = 0;
+    
+    /* Update the semaphore statistics. */
+    #if SYS_STATS
+    STATS_DEC(sys.sem.used);
+    #endif /* SYS_STATS */
 }
 
 /**
