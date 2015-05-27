@@ -53,6 +53,8 @@
 #include "lwip/debug.h"
 #include "lwip/stats.h"
 
+#include "driverlib/uartstdio.h"
+
 #include <string.h>
 
 #ifndef TCP_LOCAL_PORT_RANGE_START
@@ -632,7 +634,9 @@ tcp_recved(struct tcp_pcb *pcb, u16_t len)
   if (wnd_inflation >= TCP_WND_UPDATE_THRESHOLD) {
     tcp_ack_now(pcb);
     tcp_output(pcb);
+    UARTprintf("+++");
   }
+  UARTprintf("\n\n--\n");
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_recved: recveived %"U16_F" bytes, wnd %"U16_F" (%"U16_F").\n",
          len, pcb->rcv_wnd, TCP_WND - pcb->rcv_wnd));
@@ -1059,6 +1063,7 @@ tcp_fasttmr_start:
       /* send delayed ACKs */
       if (pcb->flags & TF_ACK_DELAY) {
         LWIP_DEBUGF(TCP_DEBUG, ("tcp_fasttmr: delayed ACK\n"));
+        UARTprintf("\ntcp_fasttmr: delayed ACK");
         tcp_ack_now(pcb);
         tcp_output(pcb);
         pcb->flags &= ~(TF_ACK_DELAY | TF_ACK_NOW);
