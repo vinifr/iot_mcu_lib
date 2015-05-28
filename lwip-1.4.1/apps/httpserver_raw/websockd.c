@@ -72,6 +72,12 @@ struct websock_state {
 #endif /* LWIP_HTTPD_SUPPORT_POST*/
 };
 
+static err_t websock_close_conn(struct tcp_pcb *pcb, struct websock_state *hs,uint8_t abort_conn);
+//static err_t http_close_or_abort_conn(struct tcp_pcb *pcb, struct http_state *hs, u8_t abort_conn);
+//static err_t http_find_file(struct http_state *hs, const char *uri, int is_09);
+//static err_t http_init_file(struct http_state *hs, struct fs_file *file, int is_09, const char *uri, u8_t tag_check);
+static err_t websock_poll(void *arg, struct tcp_pcb *pcb);
+
 volatile char ws_uuid_lock[36] = {0};
 TimerHandle_t ws_timeout_timer;
 
@@ -116,10 +122,10 @@ ws_timeout_callback( TimerHandle_t pxTimer ) {
  * @param hs connection state to free
  */
 static err_t
-websock_close_conn(struct tcp_pcb *pcb, struct websock_state *hs, u8_t abort_conn)
+websock_close_conn(struct tcp_pcb *pcb, struct websock_state *hs, uint8_t abort_conn)
 {
   err_t err;
-  LWIP_DEBUGF(HTTPD_DEBUG, ("Closing connection %p\n", (void*)pcb));
+  //LWIP_DEBUGF(HTTPD_DEBUG, ("Closing connection %p\n", (void*)pcb));
   
   tcp_arg(pcb, NULL);
   tcp_recv(pcb, NULL);
@@ -136,13 +142,48 @@ websock_close_conn(struct tcp_pcb *pcb, struct websock_state *hs, u8_t abort_con
   }
   err = tcp_close(pcb);
   if (err != ERR_OK) {
-    LWIP_DEBUGF(HTTPD_DEBUG, ("Error %d closing %p\n", err, (void*)pcb));
+    //LWIP_DEBUGF(HTTPD_DEBUG, ("Error %d closing %p\n", err, (void*)pcb));
     /* error closing, try again later in poll */
-    tcp_poll(pcb, websock_poll, HTTPD_POLL_INTERVAL);
+    tcp_poll(pcb, websock_poll, 4/*HTTPD_POLL_INTERVAL*/);
   }
   return err;
 }
 
+static err_t
+websock_write(struct tcp_pcb *pcb, const void* ptr, u16_t *length, u8_t apiflags)
+{
+   u16_t len;
+   err_t err;
+   //LWIP_ASSERT("length != NULL", length != NULL);
+   len = *length;
+   if (len == 0) {
+     return ERR_OK;
+   }
+   do {
+     //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("Trying go send %d bytes\n", len));
+     err = tcp_write(pcb, ptr, len, apiflags);
+     if (err == ERR_MEM) {
+       if ((tcp_sndbuf(pcb) == 0) ||
+           (tcp_sndqueuelen(pcb) >= TCP_SND_QUEUELEN)) {
+         /* no need to try smaller sizes */
+         len = 1;
+       } else {
+         len /= 2;
+       }
+       //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, 
+       //            ("Send failed, trying less (%d bytes)\n", len));
+     }
+   } while ((err == ERR_MEM) && (len > 1));
+
+   if (err == ERR_OK) {
+     //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("Sent %d bytes\n", len));
+   } else {
+     //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("Send failed with err %d (\"%s\")\n", err, lwip_strerr(err)));
+   }
+
+   *length = len;
+   return err;
+}
 /**
  * Try to send more data on this pcb.
  *
@@ -209,7 +250,8 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
     //tcp_ack_now(pcb);
     //tcp_output(pcb);
     tcp_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
-    tcp_output(pcb);
+    //websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
+    //tcp_output(pcb);
 //    data_to_send = http_send_data_nonssi(pcb, hs);
   }
 
@@ -263,7 +305,7 @@ websock_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
   hs->retries = 0;
 
   //if(flag_sent) 
-  //websock_send(pcb, hs);
+  //  websock_send(pcb, hs);
 
   flag_sent = 0;
   return ERR_OK;
@@ -423,11 +465,11 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
         flag_sent = 1;
         prepareBuffer;
         wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-        websock_send(pcb, hs);
+        websock_send(pcb, whs);
         UARTprintf(gBuffer);
         state = WS_STATE_OPENING;
         initNewFrame;
-        websock_close_conn(pcb, hws, 0); //tcp_abort(pcb);
+        websock_close_conn(pcb, whs, 0); //tcp_abort(pcb);
       }
     } else if (frameType == WS_TEXT_FRAME) {
       uint8_t *recievedString = NULL;
@@ -522,7 +564,7 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     if (parsed != ERR_INPROGRESS) {
       /* request fully parsed or error */
       if (hs->req != NULL) {
-        //??pbuf_free(hs->req);
+        pbuf_free(hs->req);
         hs->req = NULL;
       }
     }

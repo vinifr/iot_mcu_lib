@@ -203,11 +203,10 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     //UARTprintf("\nresponseKey: %s",responseKey);
 //    int written = sprintf_P((char *)outFrame,
 //                            PSTR("HTTP/1.1 101 Switching Protocols\r\n"
-//                                 "%s%s\r\n"
-//                                 "%s%s\r\n"
+//                                 "%s%s\r\n"//                                "%s%s\r\n"
 //                                 "Sec-WebSocket-Accept: %s\r\n\r\n"),
 //                            upgradeField,
-//                            websocket,
+//                           websocket,
 //                            connectionField,
 //                            upgrade2,
 //                            responseKey);
@@ -220,8 +219,6 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     strcat((char *)outFrame,connectionField);
     strcat((char *)outFrame,upgrade2);
     strcat((char *)outFrame,"\r\n");
-    //strcat((char *)outFrame,acessControl);
-    //strcat((char *)outFrame,"\r\n");
     strcat((char *)outFrame,"Sec-WebSocket-Accept: ");
     strcat((char *)outFrame,responseKey);
     strcat((char *)outFrame,"\r\n\r\n\0");
