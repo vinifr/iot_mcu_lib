@@ -208,7 +208,7 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
     return 0;
   }
   
-  UARTprintf("\ndata_to_send %d",strlen(gBuffer));
+  UARTprintf("\n data_to_send %d\n", hs->left);
   /* We cannot send more data than space available in the send
      buffer. */
   if (tcp_sndbuf(pcb) < hs->left) {
