@@ -199,12 +199,6 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
   //  (void*)hs, hs != NULL ? (int)hs->left : 0));
   //UARTprintf("\nhttp_send: pcb=%p hs=%p left=%d", (void*)pcb,(void*)hs, hs != NULL ? (int)hs->left : 0);  
 
-#if LWIP_HTTPD_SUPPORT_POST && LWIP_HTTPD_POST_MANUAL_WND
-  if (hs->unrecved_bytes != 0) {
-    return 0;
-  }
-#endif /* LWIP_HTTPD_SUPPORT_POST && LWIP_HTTPD_POST_MANUAL_WND */
-
   /* If we were passed a NULL state structure pointer, ignore the call. */
   if (hs == NULL) {
     return 0;
@@ -218,16 +212,6 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
   }
 #endif /* LWIP_HTTPD_FS_ASYNC_READ */
 
-#if LWIP_HTTPD_DYNAMIC_HEADERS
-  /* Do we have any more header data to send for this file? */
-//  if(hs->hdr_index < NUM_FILE_HDR_STRINGS) {
-//    data_to_send = http_send_headers(pcb, hs);
-//    if (data_to_send != HTTP_DATA_TO_SEND_CONTINUE) {
-//      return data_to_send;
-//    }
-//  }
-#endif /* LWIP_HTTPD_DYNAMIC_HEADERS */
-
   /* Have we run out of file data to send? If so, we need to read the next
    * block from the file. */
   if (hs->left == 0) {
@@ -236,11 +220,6 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
 //    }
   }
 
-#if LWIP_HTTPD_SSI
-  if(hs->ssi) {
-//    data_to_send = http_send_data_ssi(pcb, hs);
-  } else
-#endif /* LWIP_HTTPD_SSI */
   {
     UARTprintf("\ndata_to_send %d",strlen(gBuffer));
     //UARTprintf("\n*******************************\n");
@@ -248,20 +227,12 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
     //UARTprintf("\n*******************************\n");
     /* push to buffer */
     //tcp_ack_now(pcb);
-    //tcp_output(pcb);
-    tcp_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
-    //websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
+    //tcp_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
+    websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
     //tcp_output(pcb);
 //    data_to_send = http_send_data_nonssi(pcb, hs);
   }
 
-//  if((hs->left == 0) && (fs_bytes_left(hs->handle) <= 0)) {
-    /* We reached the end of the file so this request is done.
-     * This adds the FIN flag right into the last data segment. */
-//    LWIP_DEBUGF(HTTPD_DEBUG, ("End of file.\n"));
-//    http_eof(pcb, hs);
-//    return 0;
-//  }
 //  LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("send_data end.\n"));
   return data_to_send;
 }
@@ -304,8 +275,8 @@ websock_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
 
   hs->retries = 0;
 
-  //if(flag_sent) 
-  //  websock_send(pcb, hs);
+  if(flag_sent) 
+    websock_send(pcb, hs);
 
   flag_sent = 0;
   return ERR_OK;
@@ -450,18 +421,6 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
         UARTprintf("WS_STATE_CLOSING");
         return;//break;
       } else {
-        //uint8_t *recievedString = NULL;
-        //recievedString = malloc(dataSize+1);
-
-        ///memcpy(recievedString, data, dataSize);
-        //recievedString[ dataSize ] = 0;
-        
-        //prepareBuffer;
-        //wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_CLOSING_FRAME);
-        //free(recievedString);
-        //if (safeSend(clientSocket, gBuffer, frameSize) == EXIT_FAILURE)
-        //    return;//break;
-        //initNewFrame; 
         flag_sent = 1;
         prepareBuffer;
         wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
@@ -493,16 +452,13 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 
 /**
  * Data has been received on this pcb.
- * For HTTP 1.0, this should normally only happen once (if the request fits in one packet).
  */
 static err_t
 websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
   err_t parsed = ERR_ABRT;
   struct websock_state *hs = (struct websock_state *)arg;
-
-  //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: pcb=%p pbuf=%p err=%s\n", (void*)pcb,
-  //  (void*)p, lwip_strerr(err)));
+  
   //UARTprintf("\nhttp_recv: pcb=%p pbuf=%p err=%s len=%d\n", (void*)pcb,
   //           (void*)p, lwip_strerr(err),p->tot_len);
 
@@ -520,80 +476,38 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
     return ERR_OK;
   }
-
-#if LWIP_HTTPD_SUPPORT_POST && LWIP_HTTPD_POST_MANUAL_WND
-  if (hs->no_auto_wnd) {
-     hs->unrecved_bytes += p->tot_len;
-  } else
-#endif /* LWIP_HTTPD_SUPPORT_POST && LWIP_HTTPD_POST_MANUAL_WND */
-  {
-    /* Inform TCP that we have taken the data. */
-    tcp_recved(pcb, p->tot_len);
+  
+  /* Inform TCP that we have taken the data. */
+  tcp_recved(pcb, p->tot_len);
+   
+  if (hs->handle == NULL) {
+    //UARTprintf("\nparse_request:");
+    //UARTprintf("\n%s", p->payload);
+    //clientWorker(1,p->tot_len, p->payload);
+    parsed = websock_parse_request(&p, hs, pcb);
+    
+    //LWIP_ASSERT("http_parse_request: unexpected return value", parsed == ERR_OK
+    //  || parsed == ERR_INPROGRESS ||parsed == ERR_ARG || parsed == ERR_USE);
+  } else {
+    //LWIP_DEBUGF(HTTPD_DEBUG, ("http_recv: already sending data\n"));
   }
 
-#if LWIP_HTTPD_SUPPORT_POST
-  if (hs->post_content_len_left > 0) {
-    /* reset idle counter when POST data is received */
-    hs->retries = 0;
-    /* this is data for a POST, pass the complete pbuf to the application */
-    //??http_post_rxpbuf(hs, p);
-    /* pbuf is passed to the application, don't free it! */
-    if (hs->post_content_len_left == 0) {
-      /* all data received, send response or close connection */
-      //??http_send(pcb, hs);
-    }
-    return ERR_OK;
-  } else
-#endif /* LWIP_HTTPD_SUPPORT_POST */
-  {
-    struct evbuffer *input;
-    struct bufferevent *bev;
-    if (hs->handle == NULL) {
-      //UARTprintf("\nparse_request:");
-      //UARTprintf("\n%s", p->payload);
-      
-      //clientWorker(1,p->tot_len, p->payload);
-      parsed = websock_parse_request(&p, hs, pcb);
-      
-      //LWIP_ASSERT("http_parse_request: unexpected return value", parsed == ERR_OK
-      //  || parsed == ERR_INPROGRESS ||parsed == ERR_ARG || parsed == ERR_USE);
-    } else {
-      //LWIP_DEBUGF(HTTPD_DEBUG, ("http_recv: already sending data\n"));
-    }
-#if LWIP_HTTPD_SUPPORT_REQUESTLIST
-    if (parsed != ERR_INPROGRESS) {
-      /* request fully parsed or error */
-      if (hs->req != NULL) {
-        pbuf_free(hs->req);
-        hs->req = NULL;
-      }
-    }
-#else /* LWIP_HTTPD_SUPPORT_REQUESTLIST */
-    if (p != NULL) {
-      //UARTprintf(" 1");
-      /* pbuf not passed to application, free it now */
-      pbuf_free(p);
-    }
-#endif /* LWIP_HTTPD_SUPPORT_REQUESTLIST */
-    if (parsed == ERR_OK) {
-      //UARTprintf(" 2");
-#if LWIP_HTTPD_SUPPORT_POST
-      if (hs->post_content_len_left == 0)
-#endif /* LWIP_HTTPD_SUPPORT_POST */
-      {
-        UARTprintf(" 3");
-        //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: data %p len %"S32_F"\n", hs->file, hs->left));
-        websock_send(pcb, hs);
-      }
-      
-    } else if (parsed == ERR_ARG) {
-      UARTprintf(" 4");
-      /* @todo: close on ERR_USE? */
-      websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
-    }
-    //UARTprintf(" 5");
+  if (p != NULL) {
+    //UARTprintf(" 1");
+    /* pbuf not passed to application, free it now */
+    pbuf_free(p);
   }
-  //UARTprintf(" 6");
+
+  if (parsed == ERR_OK) {
+      UARTprintf(" 3");
+      //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: data %p len %"S32_F"\n", hs->file, hs->left));
+      websock_send(pcb, hs);
+  } else if (parsed == ERR_ARG) {
+    UARTprintf(" 4");
+    /* @todo: close on ERR_USE? */
+    websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
+  }
+  
   return ERR_OK;
 }
 
