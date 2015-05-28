@@ -52,7 +52,7 @@
 #include "lwip/tcpip.h"
 #endif /* LWIP_NETIF_LOOPBACK_MULTITHREADING */
 #endif /* ENABLE_LOOPBACK */
-
+#include "driverlib/uartstdio.h"//>>debug
 #if LWIP_AUTOIP
 #include "lwip/autoip.h"
 #endif /* LWIP_AUTOIP */
@@ -179,7 +179,7 @@ netif_add(struct netif *netif, ip_addr_t *ipaddr, ip_addr_t *netmask,
 #endif /* ENABLE_LOOPBACK && LWIP_LOOPBACK_MAX_PBUFS */
 
   netif_set_addr(netif, ipaddr, netmask, gw);
-
+  
   /* call user specified initialization function for netif */
   if (init(netif) != ERR_OK) {
     return NULL;
@@ -199,12 +199,34 @@ netif_add(struct netif *netif, ip_addr_t *ipaddr, ip_addr_t *netmask,
 
   LWIP_DEBUGF(NETIF_DEBUG, ("netif: added interface %c%c IP addr ",
     netif->name[0], netif->name[1]));
+  UARTprintf("\nnetif: added interface %c%c IP addr ",
+    netif->name[0], netif->name[1]);
   ip_addr_debug_print(NETIF_DEBUG, ipaddr);
   LWIP_DEBUGF(NETIF_DEBUG, (" netmask "));
   ip_addr_debug_print(NETIF_DEBUG, netmask);
   LWIP_DEBUGF(NETIF_DEBUG, (" gw "));
   ip_addr_debug_print(NETIF_DEBUG, gw);
   LWIP_DEBUGF(NETIF_DEBUG, ("\n"));
+
+  UARTprintf("\n-IP  = %d.%d.%d.%d"
+             "\n-MSK = %d.%d.%d.%d"
+             "\n-GTW = %d.%d.%d.%d\n",
+             (netif->ip_addr.addr)&0xFF,    (netif->ip_addr.addr>>8)&0xFF,
+             (netif->ip_addr.addr>>16)&0xFF,(netif->ip_addr.addr>>24)&0xFF,
+             (netif->netmask.addr)&0xFF,    (netif->netmask.addr>>8)&0xFF,
+             (netif->netmask.addr>>16)&0xFF,(netif->netmask.addr>>24)&0xFF,
+             (netif->gw.addr)&0xFF,         (netif->gw.addr>>8)&0xFF,
+             (netif->gw.addr>>16)&0xFF,     (netif->gw.addr>>24)&0xFF);
+             
+ /* UARTprintf("%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F"\n", 
+             (ntohl(ipaddr->addr[0]) >> 16) & 0xffff, 
+             ntohl(ipaddr->addr[0]) & 0xffff, 
+             (ntohl(ipaddr->addr[1]) >> 16) & 0xffff, 
+             ntohl(ipaddr->addr[1]) & 0xffff, 
+             (ntohl(ipaddr->addr[2]) >> 16) & 0xffff, 
+             ntohl(ipaddr->addr[2]) & 0xffff, 
+             (ntohl(ipaddr->addr[3]) >> 16) & 0xffff, 
+             ntohl(ipaddr->addr[3]) & 0xffff);*/
   return netif;
 }
 

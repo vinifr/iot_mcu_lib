@@ -53,6 +53,8 @@ extern "C"
 #endif
 #endif
 
+#define UART0_IDX 0
+
 //*****************************************************************************
 //
 // Prototypes for the APIs.

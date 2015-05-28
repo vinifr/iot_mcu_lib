@@ -1,0 +1,52 @@
+# On branch regis
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	new file:   .gitignore
+#	modified:   FreeRTOSV8.2.0/FreeRTOS/Source/include/task.h
+#	modified:   TivaWare_C_Series-2.1.0.12573/driverlib/uartstdio.c
+#	modified:   TivaWare_C_Series-2.1.0.12573/driverlib/uartstdio.h
+#	new file:   git.txt
+#	modified:   lwip-1.4.1/apps/httpserver_raw/LDA_debug.h
+#	new file:   lwip-1.4.1/apps/httpserver_raw/aw-base64.h
+#	new file:   lwip-1.4.1/apps/httpserver_raw/aw-sha1.h
+#	new file:   lwip-1.4.1/apps/httpserver_raw/websockd.c
+#	new file:   lwip-1.4.1/apps/httpserver_raw/websockd.h
+#	new file:   lwip-1.4.1/cwebsock/aw-base64.h
+#	new file:   lwip-1.4.1/cwebsock/aw-sha1.h
+#	new file:   lwip-1.4.1/cwebsock/websocket.c
+#	new file:   lwip-1.4.1/cwebsock/websocket.h
+#	new file:   lwip-1.4.1/libwebsock/Makefile.am
+#	new file:   lwip-1.4.1/libwebsock/api.c
+#	new file:   lwip-1.4.1/libwebsock/api.h
+#	new file:   lwip-1.4.1/libwebsock/base64.c
+#	new file:   lwip-1.4.1/libwebsock/base64.h
+#	new file:   lwip-1.4.1/libwebsock/config.h
+#	new file:   lwip-1.4.1/libwebsock/config.h.in
+#	new file:   lwip-1.4.1/libwebsock/default_callbacks.c
+#	new file:   lwip-1.4.1/libwebsock/default_callbacks.h
+#	new file:   lwip-1.4.1/libwebsock/frames.c
+#	new file:   lwip-1.4.1/libwebsock/frames.h
+#	new file:   lwip-1.4.1/libwebsock/openssl.c
+#	new file:   lwip-1.4.1/libwebsock/sha1.c
+#	new file:   lwip-1.4.1/libwebsock/sha1.h
+#	new file:   lwip-1.4.1/libwebsock/stamp-h2
+#	new file:   lwip-1.4.1/libwebsock/types.h
+#	new file:   lwip-1.4.1/libwebsock/utf.c
+#	new file:   lwip-1.4.1/libwebsock/utf.h
+#	new file:   lwip-1.4.1/libwebsock/util.c
+#	new file:   lwip-1.4.1/libwebsock/util.h
+#	new file:   lwip-1.4.1/libwebsock/websock.c
+#	new file:   lwip-1.4.1/libwebsock/websock.h
+#	new file:   lwip-1.4.1/libwebsock/websock_config.h
+#	new file:   lwip-1.4.1/libwebsock/websock_config.h.in
+#	modified:   lwip-1.4.1/src/core/netif.c
+#	modified:   lwip-1.4.1/src/core/tcp.c
+#	modified:   lwip-1.4.1/src/include/lwip/opt.h
+#
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   git.txt
+#

@@ -18,7 +18,6 @@
  * project:      https://github.com/Lindem-Data-Acquisition-AS/iot_lib/
  *
  */
-
 #ifdef DEBUG
 
 #define DEBUG_MESSAGE_DISPLAY   0
