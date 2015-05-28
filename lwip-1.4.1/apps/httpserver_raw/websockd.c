@@ -474,13 +474,7 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   tcp_recved(pcb, p->tot_len);
    
   if (hs->handle == NULL) {
-    //UARTprintf("\nparse_request:");
-    //UARTprintf("\n%s", p->payload);
-    //clientWorker(1,p->tot_len, p->payload);
     parsed = websock_parse_request(&p, hs, pcb);
-    
-    //LWIP_ASSERT("http_parse_request: unexpected return value", parsed == ERR_OK
-    //  || parsed == ERR_INPROGRESS ||parsed == ERR_ARG || parsed == ERR_USE);
   } else {
     //LWIP_DEBUGF(HTTPD_DEBUG, ("http_recv: already sending data\n"));
   }
@@ -492,9 +486,12 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   }
 
   if (parsed == ERR_OK) {
-      UARTprintf(" 3");
-      //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: data %p len %"S32_F"\n", hs->file, hs->left));
-      websock_send(pcb, hs);
+    /* Amount of bytes to send */
+    hs->len = strlen(gBuffer);
+    
+    UARTprintf(" 3");
+    //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: data %p len %"S32_F"\n", hs->file, hs->left));
+    websock_send(pcb, hs);
   } else if (parsed == ERR_ARG) {
     UARTprintf(" 4");
     /* @todo: close on ERR_USE? */
