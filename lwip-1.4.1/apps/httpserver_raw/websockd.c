@@ -108,6 +108,40 @@ ws_timeout_callback( TimerHandle_t pxTimer ) {
     GPIO_PORTM_DATA_R = (uint32_t) ~(0x00);
 }
 
+/**
+ * The connection shall be actively closed (using RST to close from fault states).
+ * Reset the sent- and recv-callbacks.
+ *
+ * @param pcb the tcp pcb to reset callbacks
+ * @param hs connection state to free
+ */
+static err_t
+websock_close_conn(struct tcp_pcb *pcb, struct websock_state *hs, u8_t abort_conn)
+{
+  err_t err;
+  LWIP_DEBUGF(HTTPD_DEBUG, ("Closing connection %p\n", (void*)pcb));
+  
+  tcp_arg(pcb, NULL);
+  tcp_recv(pcb, NULL);
+  tcp_err(pcb, NULL);
+  tcp_poll(pcb, NULL, 0);
+  tcp_sent(pcb, NULL);
+  if (hs != NULL) {
+    //http_state_free(hs);
+  }
+
+  if (abort_conn) {
+    tcp_abort(pcb);
+    return ERR_OK;
+  }
+  err = tcp_close(pcb);
+  if (err != ERR_OK) {
+    LWIP_DEBUGF(HTTPD_DEBUG, ("Error %d closing %p\n", err, (void*)pcb));
+    /* error closing, try again later in poll */
+    tcp_poll(pcb, websock_poll, HTTPD_POLL_INTERVAL);
+  }
+  return err;
+}
 
 /**
  * Try to send more data on this pcb.
@@ -392,7 +426,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
         UARTprintf(gBuffer);
         state = WS_STATE_OPENING;
         initNewFrame;
-        tcp_abort(pcb);
+        websock_close_conn(pcb, hws, 0); //tcp_abort(pcb);
       }
     } else if (frameType == WS_TEXT_FRAME) {
       uint8_t *recievedString = NULL;
