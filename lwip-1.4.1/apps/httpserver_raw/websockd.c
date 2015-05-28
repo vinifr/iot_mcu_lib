@@ -287,7 +287,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
     err_t closed;
     /* arg is null, close. */
     //LWIP_DEBUGF(HTTPD_DEBUG, ("http_poll: arg is NULL, close\n"));
-    //??closed = http_close_conn(pcb, NULL);
+    closed = websock_close_conn(pcb, NULL, 0); //??closed = http_close_conn(pcb, NULL);
     //LWIP_UNUSED_ARG(closed);
 #if LWIP_HTTPD_ABORT_ON_CLOSE_MEM_ERROR
     if (closed == ERR_MEM) {
@@ -300,7 +300,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
     hs->retries++;
     if (hs->retries == 4/*??HTTPD_MAX_RETRIES*/) {
       //LWIP_DEBUGF(HTTPD_DEBUG, ("http_poll: too many retries, close\n"));
-      //??http_close_conn(pcb, hs);
+      websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
       return ERR_OK;
     }
 
@@ -475,7 +475,7 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
       /* this should not happen, only to be robust */
       //LWIP_DEBUGF(HTTPD_DEBUG, ("Error, http_recv: hs is NULL, close\n"));
     }
-    //??http_close_conn(pcb, hs);
+    websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
     return ERR_OK;
   }
 
@@ -547,7 +547,7 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     } else if (parsed == ERR_ARG) {
       UARTprintf(" 4");
       /* @todo: close on ERR_USE? */
-      //??http_close_conn(pcb, hs);
+      websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
     }
     //UARTprintf(" 5");
   }
