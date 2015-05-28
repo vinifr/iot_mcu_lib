@@ -423,6 +423,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
         flag_sent = 1;
         prepareBuffer;
         wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
+        websock_send(pcb, hs);
         UARTprintf(gBuffer);
         state = WS_STATE_OPENING;
         initNewFrame;
