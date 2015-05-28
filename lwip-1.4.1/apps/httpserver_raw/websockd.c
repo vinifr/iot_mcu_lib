@@ -221,7 +221,7 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
   if(len > (2 * mss)) {
     len = 2 * mss;
   }
- err = websock_write(pcb, gBuffer, len, TCP_WRITE_FLAG_COPY);
+ err = websock_write(pcb, hs->file, len, TCP_WRITE_FLAG_COPY);
   //websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
   if (err == ERR_OK) {
     data_to_send = true;
@@ -488,6 +488,7 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   if (parsed == ERR_OK) {
     /* Amount of bytes to send */
     hs->len = strlen(gBuffer);
+    hs->file = gBuffer;
     
     UARTprintf(" 3");
     //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: data %p len %"S32_F"\n", hs->file, hs->left));
