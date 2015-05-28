@@ -184,6 +184,7 @@ websock_write(struct tcp_pcb *pcb, const void* ptr, u16_t *length, u8_t apiflags
    *length = len;
    return err;
 }
+
 /**
  * Try to send more data on this pcb.
  *
@@ -193,7 +194,10 @@ websock_write(struct tcp_pcb *pcb, const void* ptr, u16_t *length, u8_t apiflags
 static u8_t
 websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
 {
-  u8_t data_to_send = 0;//HTTP_NO_DATA_TO_SEND;
+  err_t err;
+  u16_t len;
+  u16_t mss;
+  u8_t data_to_send = 0;
 
   //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_send: pcb=%p hs=%p left=%d\n", (void*)pcb,
   //  (void*)hs, hs != NULL ? (int)hs->left : 0));
@@ -203,36 +207,27 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
   if (hs == NULL) {
     return 0;
   }
-
-#if LWIP_HTTPD_FS_ASYNC_READ
-  /* Check if we are allowed to read from this file.
-     (e.g. SSI might want to delay sending until data is available) */
-  if (!fs_is_file_ready(hs->handle, http_continue, hs)) {
-    return 0;
+  
+  UARTprintf("\ndata_to_send %d",strlen(gBuffer));
+  /* We cannot send more data than space available in the send
+     buffer. */
+  if (tcp_sndbuf(pcb) < hs->left) {
+    len = tcp_sndbuf(pcb);
+  } else {
+    len = (u16_t)hs->left;
+    LWIP_ASSERT("hs->left did not fit into u16_t!", (len == hs->left));
   }
-#endif /* LWIP_HTTPD_FS_ASYNC_READ */
-
-  /* Have we run out of file data to send? If so, we need to read the next
-   * block from the file. */
-  if (hs->left == 0) {
-//    if (!http_check_eof(pcb, hs)) {
-//      return 0;
-//    }
+  mss = tcp_mss(pcb);
+  if(len > (2 * mss)) {
+    len = 2 * mss;
   }
-
-  {
-    UARTprintf("\ndata_to_send %d",strlen(gBuffer));
-    //UARTprintf("\n*******************************\n");
-    //UARTprintf(gBuffer);
-    //UARTprintf("\n*******************************\n");
-    /* push to buffer */
-    //tcp_ack_now(pcb);
-    //tcp_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
-    websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
-    //tcp_output(pcb);
-//    data_to_send = http_send_data_nonssi(pcb, hs);
+ err = websock_write(pcb, gBuffer, len, TCP_WRITE_FLAG_COPY);
+  //websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
+  if (err == ERR_OK) {
+    data_to_send = true;
+    hs->file += len;
+    hs->left -= len;
   }
-
 //  LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("send_data end.\n"));
   return data_to_send;
 }
