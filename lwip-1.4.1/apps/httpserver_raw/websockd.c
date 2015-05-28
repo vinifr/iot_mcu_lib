@@ -270,10 +270,8 @@ websock_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
 
   hs->retries = 0;
 
-  if(flag_sent) 
-    websock_send(pcb, hs);
+  websock_send(pcb, hs);
 
-  flag_sent = 0;
   return ERR_OK;
 }
 
