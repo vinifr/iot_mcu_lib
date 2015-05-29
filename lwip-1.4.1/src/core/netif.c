@@ -199,24 +199,12 @@ netif_add(struct netif *netif, ip_addr_t *ipaddr, ip_addr_t *netmask,
 
   LWIP_DEBUGF(NETIF_DEBUG, ("netif: added interface %c%c IP addr ",
     netif->name[0], netif->name[1]));
-  UARTprintf("\nnetif: added interface %c%c IP addr ",
-    netif->name[0], netif->name[1]);
   ip_addr_debug_print(NETIF_DEBUG, ipaddr);
   LWIP_DEBUGF(NETIF_DEBUG, (" netmask "));
   ip_addr_debug_print(NETIF_DEBUG, netmask);
   LWIP_DEBUGF(NETIF_DEBUG, (" gw "));
   ip_addr_debug_print(NETIF_DEBUG, gw);
   LWIP_DEBUGF(NETIF_DEBUG, ("\n"));
-
-  UARTprintf("\n-IP  = %d.%d.%d.%d"
-             "\n-MSK = %d.%d.%d.%d"
-             "\n-GTW = %d.%d.%d.%d\n",
-             (netif->ip_addr.addr)&0xFF,    (netif->ip_addr.addr>>8)&0xFF,
-             (netif->ip_addr.addr>>16)&0xFF,(netif->ip_addr.addr>>24)&0xFF,
-             (netif->netmask.addr)&0xFF,    (netif->netmask.addr>>8)&0xFF,
-             (netif->netmask.addr>>16)&0xFF,(netif->netmask.addr>>24)&0xFF,
-             (netif->gw.addr)&0xFF,         (netif->gw.addr>>8)&0xFF,
-             (netif->gw.addr>>16)&0xFF,     (netif->gw.addr>>24)&0xFF);
              
  /* UARTprintf("%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F":%"X32_F"\n", 
              (ntohl(ipaddr->addr[0]) >> 16) & 0xffff, 
@@ -390,7 +378,7 @@ netif_set_ipaddr(struct netif *netif, ip_addr_t *ipaddr)
   snmp_insert_ipaddridx_tree(netif);
   snmp_insert_iprteidx_tree(0,netif);
 
-  LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, ("netif: IP address of interface %c%c set to %"U16_F".%"U16_F".%"U16_F".%"U16_F"\n",
+  LWIP_DEBUGF(NETIFUP_DEBUG | NETIF_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, ("netif: IP address of interface %c%c set to %"U16_F".%"U16_F".%"U16_F".%"U16_F"\n",
     netif->name[0], netif->name[1],
     ip4_addr1_16(&netif->ip_addr),
     ip4_addr2_16(&netif->ip_addr),

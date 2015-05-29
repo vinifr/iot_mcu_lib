@@ -17,6 +17,9 @@
 
 #include "driverlib/uartstdio.h"
 
+#define true 		1
+#define false		0
+
 #define WEBSOCKD_SERVER_PORT 8088
 #define WEBSOCKD_TCP_PRIO                      TCP_PRIO_MIN
 
@@ -221,7 +224,7 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
   if(len > (2 * mss)) {
     len = 2 * mss;
   }
- err = websock_write(pcb, hs->file, len, TCP_WRITE_FLAG_COPY);
+ err = websock_write(pcb, hs->file, &len, TCP_WRITE_FLAG_COPY);
   //websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
   if (err == ERR_OK) {
     data_to_send = true;
@@ -290,10 +293,10 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
   //  (void*)pcb, (void*)hs, tcp_debug_state_str(pcb->state)));
 
   if (hs == NULL) {
-    err_t closed;
+    //err_t closed;
     /* arg is null, close. */
     //LWIP_DEBUGF(HTTPD_DEBUG, ("http_poll: arg is NULL, close\n"));
-    closed = websock_close_conn(pcb, NULL, 0); //??closed = http_close_conn(pcb, NULL);
+    /*closed =*/ websock_close_conn(pcb, NULL, 0); //??closed = http_close_conn(pcb, NULL);
     //LWIP_UNUSED_ARG(closed);
 #if LWIP_HTTPD_ABORT_ON_CLOSE_MEM_ERROR
     if (closed == ERR_MEM) {
@@ -330,7 +333,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 static err_t
 websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_pcb *pcb)
 {
-  err_t err;
+  //err_t err;
   size_t readedLength = 0;
   size_t frameSize = BUF_LEN;
   static enum wsState state = WS_STATE_OPENING;
@@ -374,13 +377,13 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
           frameSize = strlen((char *)gBuffer);
           safeSend(clientSocket, gBuffer, frameSize);
 
-          return;//break;
+          return ERR_MEM; //break;
       } else {
           prepareBuffer;
           UARTprintf("\n!WS_STATE_OPENING");
           wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
           if (safeSend(clientSocket, gBuffer, frameSize) == EXIT_FAILURE)
-            return;//break;
+            return ERR_MEM;//break;
           state = WS_STATE_CLOSING;
           initNewFrame;
       }
@@ -395,14 +398,14 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       if (strcmp(hs.resource, "/echo") != 0) {
           frameSize = sprintf((char *)gBuffer, "HTTP/1.1 404 Not Found\r\n\r\n");
           safeSend(clientSocket, gBuffer, frameSize);
-          return;//break;
+          return ERR_MEM;//break;
       }
       
       prepareBuffer;
       wsGetHandshakeAnswer(&hs, gBuffer, &frameSize);
       freeHandshake(&hs);
       if (safeSend(clientSocket, gBuffer, frameSize) == EXIT_FAILURE)
-        return;//break;
+        return ERR_MEM;//break;
           
       state = WS_STATE_NORMAL;
       initNewFrame;
@@ -412,7 +415,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       UARTprintf("\n>WS_CLOSING_FRAME");
       if (state == WS_STATE_CLOSING) {
         UARTprintf("WS_STATE_CLOSING");
-        return;//break;
+        return ERR_MEM;//break;
       } else {
         flag_sent = 1;
         prepareBuffer;
@@ -433,7 +436,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_TEXT_FRAME);
       free(recievedString);
       if (safeSend(clientSocket, gBuffer, frameSize) == EXIT_FAILURE)
-          return;//break;
+          return ERR_MEM;//break;
       initNewFrame;
     }
     //UARTprintf("!!!");
@@ -486,8 +489,8 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 
   if (parsed == ERR_OK) {
     /* Amount of bytes to send */
-    hs->len = strlen(gBuffer);
-    hs->file = gBuffer;
+    hs->left = strlen(gBuffer);
+    hs->file = (char*)gBuffer;
     
     UARTprintf(" 3");
     //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: data %p len %"S32_F"\n", hs->file, hs->left));
@@ -542,7 +545,7 @@ websock_state_alloc(void)
   return ret;
 }
 
-websockd_accept(void *arg, struct tcp_pcb *pcb, err_t err)
+static err_t websockd_accept(void *arg, struct tcp_pcb *pcb, err_t err) // (void *arg, struct tcp_pcb *pcb, err_t err)
 {
   struct websock_state *hs;
   struct tcp_pcb_listen *lpcb = (struct tcp_pcb_listen*)arg;
