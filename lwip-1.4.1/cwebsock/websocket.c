@@ -73,7 +73,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
     const char *inputPtr = (const char *)inputFrame;
     const char *endPtr = (const char *)inputFrame + inputLength;
 
-    UARTprintf("\nwsParseHandshake");
+    UARTprintf("\nwsParseHandshake\n");
     //UARTprintf(inputFrame);
 
     if (!strstr((const char *)inputFrame, "\r\n\r\n")) {

@@ -29,7 +29,7 @@
 
 struct websock_state {
 #if LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED
-  struct http_state *next;
+  struct websock_state *next;
 #endif /* LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED */
   struct fs_file file_handle;
   struct fs_file *handle;
@@ -39,11 +39,8 @@ struct websock_state {
 #if LWIP_HTTPD_SUPPORT_REQUESTLIST
   struct pbuf *req;
 #endif /* LWIP_HTTPD_SUPPORT_REQUESTLIST */
-
-#if LWIP_HTTPD_DYNAMIC_FILE_READ
-  char *buf;        /* File read buffer. */
+  uint8_t *buf;        /* File read buffer. */
   int buf_len;      /* Size of file read buffer, buf. */
-#endif /* LWIP_HTTPD_DYNAMIC_FILE_READ */
   u32_t left;       /* Number of unsent bytes in buf. */
   u8_t retries;
 #if LWIP_HTTPD_SUPPORT_11_KEEPALIVE
@@ -85,10 +82,10 @@ volatile char ws_uuid_lock[36] = {0};
 TimerHandle_t ws_timeout_timer;
 
 //#define PORT 8088
-#define BUF_LEN 0xFFFF
+#define BUF_LEN 512//0xFFFF
 #define PACKET_DUMP
 
-uint8_t gBuffer[BUF_LEN];
+//uint8_t gBuffer[BUF_LEN];
 uint8_t flag_sent = 0;
 
 
@@ -98,13 +95,13 @@ void error(const char *msg)
     //exit(EXIT_FAILURE);
 }
 
-int safeSend(int clientSocket, const uint8_t *buffer, size_t bufferSize)
+/*int safeSend(int clientSocket, const uint8_t *buffer, size_t bufferSize)
 {
 //  UARTprintf("\n*******************************\n");
 //  UARTprintf(buffer);
 //  UARTprintf("\n*******************************\n");  
   return EXIT_SUCCESS;
-}
+}*/
 
 void
 ws_timeout_callback( TimerHandle_t pxTimer ) {
@@ -224,12 +221,20 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
   if(len > (2 * mss)) {
     len = 2 * mss;
   }
- err = websock_write(pcb, hs->file, &len, TCP_WRITE_FLAG_COPY);
+ err = websock_write(pcb, hs->buf, &len, TCP_WRITE_FLAG_COPY);
   //websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
   if (err == ERR_OK) {
     data_to_send = true;
-    hs->file += len;
+    hs->buf += len;
     hs->left -= len;
+  }
+  
+  if (hs->left == 0)
+  {
+      if (hs->buf) {
+        mem_free(hs->buf);
+        hs->buf = NULL;
+    }
   }
 //  LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("send_data end.\n"));
   return data_to_send;
@@ -342,18 +347,21 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
   static enum wsFrameType frameType = WS_INCOMPLETE_FRAME;
   static struct handshake hs;
   struct pbuf *p = *inp;
-  int clientSocket = 1;
+  //int clientSocket = 1;
   nullHandshake(&hs);
   
-  #define prepareBuffer frameSize = BUF_LEN; memset(gBuffer, 0, BUF_LEN);
-  #define initNewFrame frameType = WS_INCOMPLETE_FRAME; //readedLength = 0; memset(gBuffer, 0, BUF_LEN);
+  #define prepareBuffer frameSize = BUF_LEN; memset(whs->buf, 0, readedLength);
+  #define initNewFrame frameType = WS_INCOMPLETE_FRAME;
   
   readedLength+= p->tot_len;
-  memcpy(gBuffer, p->payload, p->tot_len);
+  whs->buf = (uint8_t *)mem_malloc(readedLength);
+  whs->left = readedLength;
+      
+  memcpy(whs->buf, p->payload, p->tot_len);
   if (state == WS_STATE_OPENING) {
-    frameType = wsParseHandshake(gBuffer, readedLength, &hs);
+    frameType = wsParseHandshake(whs->buf, readedLength, &hs);
   } else {
-    frameType = wsParseInputFrame(gBuffer, readedLength, &data, &dataSize);
+    frameType = wsParseInputFrame(whs->buf, readedLength, &data, &dataSize);
   }
   UARTprintf("\nframeType = %02X",frameType);
   if ((frameType == WS_INCOMPLETE_FRAME && readedLength == BUF_LEN) || frameType == WS_ERROR_FRAME) {
@@ -365,25 +373,26 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       if (state == WS_STATE_OPENING) {
           prepareBuffer;
           //UARTprintf("\nWS_STATE_OPENING");
-          //frameSize = sprintf((char *)gBuffer,
+          //frameSize = sprintf((char *)hs->buf,
           //                    "HTTP/1.1 400 Bad Request\r\n"
           //                    "%s%s\r\n\r\n",
           //                    versionField,
           //                    version);
-          strcat((char *)gBuffer,"HTTP/1.1 400 Bad Request\r\n");
-          strcat((char *)gBuffer,versionField);
-          strcat((char *)gBuffer,version);    
-          strcat((char *)gBuffer,"\r\n\r\n\0");       
-          frameSize = strlen((char *)gBuffer);
-          safeSend(clientSocket, gBuffer, frameSize);
+          strcat((char *)whs->buf,"HTTP/1.1 400 Bad Request\r\n");
+          strcat((char *)whs->buf,versionField);
+          strcat((char *)whs->buf,version);    
+          strcat((char *)whs->buf,"\r\n\r\n\0");       
+          frameSize = strlen((char *)whs->buf);
+	  wsMakeFrame(NULL, 0, whs->buf, &frameSize, WS_ERROR_FRAME);
+          //safeSend(clientSocket, *whs->buf, frameSize);
 
-          return ERR_MEM; //break;
+          return ERR_OK; //break;
       } else {
           prepareBuffer;
           UARTprintf("\n!WS_STATE_OPENING");
-          wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-          if (safeSend(clientSocket, gBuffer, frameSize) == EXIT_FAILURE)
-            return ERR_MEM;//break;
+          wsMakeFrame(NULL, 0, whs->buf, &frameSize, WS_CLOSING_FRAME);
+          //if (safeSend(clientSocket, whs->buf, frameSize) == EXIT_FAILURE)
+            //return ERR_MEM;//break;
           state = WS_STATE_CLOSING;
           initNewFrame;
       }
@@ -396,16 +405,17 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       //UARTprintf("\nWS_OPENING_FRAME");
       // if resource is right, generate answer handshake and send it
       if (strcmp(hs.resource, "/echo") != 0) {
-          frameSize = sprintf((char *)gBuffer, "HTTP/1.1 404 Not Found\r\n\r\n");
-          safeSend(clientSocket, gBuffer, frameSize);
-          return ERR_MEM;//break;
+          frameSize = sprintf((char*)whs->buf, "HTTP/1.1 404 Not Found\r\n\r\n");
+	  wsMakeFrame(NULL, 0, whs->buf, &frameSize, WS_ERROR_FRAME);
+          //safeSend(clientSocket, hs->buf, frameSize);	  
+          return ERR_OK;//break;
       }
       
       prepareBuffer;
-      wsGetHandshakeAnswer(&hs, gBuffer, &frameSize);
+      wsGetHandshakeAnswer(&hs, whs->buf, &frameSize);
       freeHandshake(&hs);
-      if (safeSend(clientSocket, gBuffer, frameSize) == EXIT_FAILURE)
-        return ERR_MEM;//break;
+      //if (safeSend(clientSocket, *whs->buf, frameSize) == EXIT_FAILURE)
+        //return ERR_MEM;//break;
           
       state = WS_STATE_NORMAL;
       initNewFrame;
@@ -419,8 +429,8 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       } else {
         flag_sent = 1;
         prepareBuffer;
-        wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-        UARTprintf(gBuffer);
+        wsMakeFrame(NULL, 0, whs->buf, &frameSize, WS_CLOSING_FRAME);
+        UARTprintf("%s\n", whs->buf);
         state = WS_STATE_OPENING;
         initNewFrame;
         //websock_close_conn(pcb, whs, 0); //tcp_abort(pcb);
@@ -433,10 +443,10 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       recievedString[ dataSize ] = 0;
       
       prepareBuffer;
-      wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_TEXT_FRAME);
+      wsMakeFrame(recievedString, dataSize, whs->buf, &frameSize, WS_TEXT_FRAME);
       free(recievedString);
-      if (safeSend(clientSocket, gBuffer, frameSize) == EXIT_FAILURE)
-          return ERR_MEM;//break;
+      //if (safeSend(clientSocket, hs->buf, frameSize) == EXIT_FAILURE)
+          //return ERR_MEM;//break;
       initNewFrame;
     }
     //UARTprintf("!!!");
@@ -489,8 +499,8 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 
   if (parsed == ERR_OK) {
     /* Amount of bytes to send */
-    hs->left = strlen(gBuffer);
-    hs->file = (char*)gBuffer;
+    //hs->left = strlen((char *)gBuffer);
+    //hs->file = hs->buf;    
     
     UARTprintf(" 3");
     //LWIP_DEBUGF(HTTPD_DEBUG | LWIP_DBG_TRACE, ("http_recv: data %p len %"S32_F"\n", hs->file, hs->left));
@@ -594,9 +604,9 @@ websockd_init_addr(ip_addr_t *local_addr)
   tcp_setprio(pcb, WEBSOCKD_TCP_PRIO);
   /* set SOF_REUSEADDR here to explicitly bind httpd to multiple interfaces */
   err = tcp_bind(pcb, local_addr, WEBSOCKD_SERVER_PORT);
-  //LWIP_ASSERT("httpd_init: tcp_bind failed", err == ERR_OK);
+  LWIP_ASSERT("httpd_init: tcp_bind failed", err == ERR_OK);
   pcb = tcp_listen(pcb);
-  //LWIP_ASSERT("httpd_init: tcp_listen failed", pcb != NULL);
+  LWIP_ASSERT("httpd_init: tcp_listen failed", pcb != NULL);
   /* initialize callback arg and accept callback */
   tcp_arg(pcb, pcb);
   tcp_accept(pcb, websockd_accept);

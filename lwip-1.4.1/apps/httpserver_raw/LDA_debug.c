@@ -25,7 +25,11 @@
 #include <string.h>
 #include <stddef.h>
 #include "httpserver_raw/LDA_debug.h"
+#include "driverlib/uartstdio.h"
 #include "lwip/udp.h"
+
+//#define putudec(x)	UARTprintf("%d ",x)
+
 
 static void
 send_udp( char * debug_message ) {
@@ -78,7 +82,7 @@ send_udp_bin( uint8_t * msg, size_t len ) {
 void
 send_debug_assert(char *pcFilename, uint32_t ui32Line) {
 
-#warning "putudec not defined"
+//#warning "putudec not defined"
     return;
 
     static char buf[64];
@@ -86,7 +90,7 @@ send_debug_assert(char *pcFilename, uint32_t ui32Line) {
     strcpy( buf, "File: " );
     strncpy( buf + strlen(buf), pcFilename, 64 - 18 );
     strcpy( buf + strlen(buf), " Line: " );
-    putudec( buf + strlen(buf), ui32Line );
+    //putudec( buf + strlen(buf), ui32Line );
 
     if( strlen(buf) < 63 ) {
         buf[strlen(buf) + 1] = 0;
