@@ -146,6 +146,8 @@ struct handshake {
      * @param hs free and NULL handshake structure
      */
     void freeHandshake(struct handshake *hs);
+    
+    int Wsscanf (const char *buf, const char *fmt, ...);
 
 #ifdef	__cplusplus
 }
