@@ -77,6 +77,7 @@ enum wsFrameType { // errors starting from 0xF0
     WS_EMPTY_FRAME = 0xF0,
     WS_ERROR_FRAME = 0xF1,
     WS_INCOMPLETE_FRAME = 0xF2,
+    WS_CONTINUE_FRAME=0x00,
     WS_TEXT_FRAME = 0x01,
     WS_BINARY_FRAME = 0x02,
     WS_PING_FRAME = 0x09,
