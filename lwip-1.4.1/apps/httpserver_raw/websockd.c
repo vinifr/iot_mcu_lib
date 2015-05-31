@@ -29,17 +29,11 @@
 #define NUM_FILE_HDR_STRINGS 3
 
 struct websock_state {
-#if LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED
-  struct websock_state *next;
-#endif /* LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED */
   struct fs_file file_handle;
   struct fs_file *handle;
   char *file;       /* Pointer to first unsent byte in buf. */
 
   struct tcp_pcb *pcb;
-#if LWIP_HTTPD_SUPPORT_REQUESTLIST
-  struct pbuf *req;
-#endif /* LWIP_HTTPD_SUPPORT_REQUESTLIST */
   uint8_t *buf;        /* File read buffer. */
   uint8_t *frame;
   int buf_len;      /* Size of file read buffer, buf. */
@@ -48,24 +42,6 @@ struct websock_state {
 #if LWIP_HTTPD_SUPPORT_11_KEEPALIVE
   u8_t keepalive;
 #endif /* LWIP_HTTPD_SUPPORT_11_KEEPALIVE */
-
-#if LWIP_HTTPD_DYNAMIC_HEADERS
-  const char *hdrs[NUM_FILE_HDR_STRINGS]; /* HTTP headers to be sent. */
-  u16_t hdr_pos;     /* The position of the first unsent header byte in the
-                        current string */
-  u16_t hdr_index;   /* The index of the hdr string currently being sent. */
-#endif /* LWIP_HTTPD_DYNAMIC_HEADERS */
-#if LWIP_HTTPD_TIMING
-  u32_t time_started;
-#endif /* LWIP_HTTPD_TIMING */
-#if LWIP_HTTPD_SUPPORT_POST
-  u32_t post_content_len_left;
-#if LWIP_HTTPD_POST_MANUAL_WND
-  u32_t unrecved_bytes;
-  u8_t no_auto_wnd;
-  u8_t post_finished;
-#endif /* LWIP_HTTPD_POST_MANUAL_WND */
-#endif /* LWIP_HTTPD_SUPPORT_POST*/
 };
 
 static err_t websock_close_conn(struct tcp_pcb *pcb, struct websock_state *hs,uint8_t abort_conn);
@@ -94,14 +70,6 @@ void error(const char *msg)
     //perror(msg);
     //exit(EXIT_FAILURE);
 }
-
-/*int safeSend(int clientSocket, const uint8_t *buffer, size_t bufferSize)
-{
-//  UARTprintf("\n*******************************\n");
-//  UARTprintf(buffer);
-//  UARTprintf("\n*******************************\n");  
-  return EXIT_SUCCESS;
-}*/
 
 void
 ws_timeout_callback( TimerHandle_t pxTimer ) {
@@ -221,7 +189,6 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
     len = 2 * mss;
   }
  err = websock_write(pcb, hs->frame, &len, TCP_WRITE_FLAG_COPY);
-  //websock_write(pcb, gBuffer, strlen(gBuffer), TCP_WRITE_FLAG_COPY);
   if (err == ERR_OK) {
     data_to_send = true;
     hs->frame += len;
@@ -286,18 +253,19 @@ websock_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
  *
  * This could be increased, but we don't want to waste resources for bad connections.
  */
+#if LWIP_WEBSOCKDPING
 static err_t
 websock_poll(void *arg, struct tcp_pcb *pcb)
 {
   struct websock_state *hs = (struct websock_state *)arg;
-  LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_poll: pcb=%p hs=%p pcb_state=%s\n",
-    (void*)pcb, (void*)hs, tcp_debug_state_str(pcb->state)));
+  //LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_poll: pcb=%p hs=%p pcb_state=%s\n",
+    //(void*)pcb, (void*)hs, tcp_debug_state_str(pcb->state)));
 
   if (hs == NULL) {
     //err_t closed;
     /* arg is null, close. */
     LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: arg is NULL, close\n"));
-    /*closed =*/ websock_close_conn(pcb, NULL, 0); //??closed = http_close_conn(pcb, NULL);
+    /*closed =*/ websock_close_conn(pcb, NULL, 0);
     //LWIP_UNUSED_ARG(closed);
 #if LWIP_HTTPD_ABORT_ON_CLOSE_MEM_ERROR
     if (closed == ERR_MEM) {
@@ -308,13 +276,14 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
     return ERR_OK;
   } else {
     hs->retries++;
-    if (hs->retries == 4) {
+    if (hs->retries == 4 && !hs->left) {
 	hs->retries = 0;
 	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: PING FRAME\n"));
 	//websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
 	prepareBuffer;           
 	wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PING_FRAME);
 	hs->left = frameSize;
+	hs->frame = gBuffer;
 	websock_send(pcb, hs);
 	initNewFrame;
 	
@@ -328,7 +297,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
       LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_poll: try to send more data\n"));
       if(websock_send(pcb, hs)) {
         /* If we wrote anything to be sent, go ahead and send it now. */
-        //LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("tcp_output\n"));
+        LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("tcp_output\n"));
         //UARTprintf("\ntcp_output(pcb)");
         tcp_output(pcb);        
       }
@@ -337,6 +306,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 
   return ERR_OK;
 }
+#endif
 
 static err_t
 websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_pcb *pcb)
@@ -372,13 +342,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
           UARTprintf("error in incoming frame\n");
       
       if (state == WS_STATE_OPENING) {
-          prepareBuffer;
-          //UARTprintf("\nWS_STATE_OPENING");
-          //frameSize = sprintf((char *)hs->buf,
-          //                    "HTTP/1.1 400 Bad Request\r\n"
-          //                    "%s%s\r\n\r\n",
-          //                    versionField,
-          //                    version);
+          prepareBuffer;          
           strcat((char *)gBuffer,"HTTP/1.1 400 Bad Request\r\n");
           strcat((char *)gBuffer,versionField);
           strcat((char *)gBuffer,version);    
@@ -401,9 +365,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       }
   }
   
-  if (state == WS_STATE_OPENING) {
-    //UARTprintf("\nWS_STATE_OPENING");
-    //assert(frameType == WS_OPENING_FRAME);
+  if (state == WS_STATE_OPENING) {   
     if (frameType == WS_OPENING_FRAME) {
       //UARTprintf("\nWS_OPENING_FRAME");
       // if resource is right, generate answer handshake and send it
@@ -504,12 +466,8 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
     pbuf_free(p);
   }
 
-  if (parsed == ERR_OK) {
-    /* Amount of bytes to send */
-    //hs->left = strlen((char *)gBuffer);
-    //hs->file = hs->buf;    
+  if (parsed == ERR_OK) {   
     
-    //UARTprintf(" 3");
     LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_recv: data %p len %"S32_F"\n", hs->file, hs->left));
     websock_send(pcb, hs);
   } else if (parsed == ERR_ARG) {
@@ -528,10 +486,6 @@ websock_state_init(struct websock_state* hs)
 {
   /* Initialize the structure. */
   memset(hs, 0, sizeof(struct websock_state));
-#if LWIP_HTTPD_DYNAMIC_HEADERS
-  /* Indicate that the headers are not yet valid */
-  hs->hdr_index = NUM_FILE_HDR_STRINGS;
-#endif /* LWIP_HTTPD_DYNAMIC_HEADERS */
 }
 
 /** Allocate a struct websock_state. */
@@ -591,7 +545,9 @@ static err_t websockd_accept(void *arg, struct tcp_pcb *pcb, err_t err) // (void
   /* Set up the various callback functions */
   tcp_recv(pcb, websock_recv);
   tcp_err(pcb, websock_err);
-  //tcp_poll(pcb, websock_poll, 8);
+  #if LWIP_WEBSOCKDPING
+  tcp_poll(pcb, websock_poll, 8);
+  #endif
   tcp_sent(pcb, websock_sent);
 
   return ERR_OK;

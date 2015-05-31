@@ -424,20 +424,10 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     sha1(shaHash, responseKey, length);
     size_t base64Length = base64(responseKey, length, shaHash, 20);
     responseKey[base64Length-1] = '=';
-    responseKey[base64Length] = '\0';
-    //UARTprintf("\nresponseKey: %s",responseKey);
-//    int written = sprintf_P((char *)outFrame,
-//                            PSTR("HTTP/1.1 101 Switching Protocols\r\n"
-//                                 "%s%s\r\n"//                                "%s%s\r\n"
-//                                 "Sec-WebSocket-Accept: %s\r\n\r\n"),
-//                            upgradeField,
-//                           websocket,
-//                            connectionField,
-//                            upgrade2,
-//                            responseKey);
+    responseKey[base64Length] = '\0';    //
 
-    int written = 0;
-    strcat((char *)outFrame,"HTTP/1.1 101 Switching Protocols\r\n");//HTTP/1.1 101 Web Socket Protocol Handshake
+    int written = 0; // "HTTP/1.1 101 Switching Protocols\r\n"
+    strcat((char *)outFrame,"HTTP/1.1 101 Web Socket Protocol Handshake\r\n");
     strcat((char *)outFrame,upgradeField);
     strcat((char *)outFrame,websocket);
     strcat((char *)outFrame,"\r\n");
@@ -474,8 +464,7 @@ void wsMakeFrame(const uint8_t *data, size_t dataLength,
         memcpy(&outFrame[2], &payloadLength16b, 2);
         *outLength = 4;
     } else {
-        //assert(dataLength <= 0xFFFF);
-        
+        //assert(dataLength <= 0xFFFF);        
     }
     memcpy(&outFrame[*outLength], data, dataLength);
     *outLength+= dataLength;
