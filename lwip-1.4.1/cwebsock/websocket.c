@@ -28,6 +28,9 @@
 #include <ctype.h>
 
 #include "websocket.h"
+#include "aw-base64.h"
+#include "aw-sha1.h"
+
 #include "driverlib/uartstdio.h"
 #include "lwip/tcp.h"
 #include "lwip/debug.h"
@@ -323,9 +326,9 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
     hs->resource = (char *)mem_malloc(second - first + 1); // +1 is for \x00 symbol
     //assert(hs->resource);
 
-    //if (Wsscanf(inputPtr, PSTR("GET %s HTTP/1.1\r\n"), hs->resource) != 1)
-        //return WS_ERROR_FRAME;
-    strcat(hs->resource,"/echo");
+    if (Wsscanf(inputPtr, PSTR("GET %s HTTP/1.1\r\n"), hs->resource) != 1)
+        return WS_ERROR_FRAME;
+    //strcat(hs->resource,"/echo");
     
     inputPtr = strstr_P(inputPtr, rn) + 2;
 

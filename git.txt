@@ -1,52 +1,137 @@
-# On branch regis
-# Changes to be committed:
-#   (use "git reset HEAD <file>..." to unstage)
-#
-#	new file:   .gitignore
-#	modified:   FreeRTOSV8.2.0/FreeRTOS/Source/include/task.h
-#	modified:   TivaWare_C_Series-2.1.0.12573/driverlib/uartstdio.c
-#	modified:   TivaWare_C_Series-2.1.0.12573/driverlib/uartstdio.h
-#	new file:   git.txt
-#	modified:   lwip-1.4.1/apps/httpserver_raw/LDA_debug.h
-#	new file:   lwip-1.4.1/apps/httpserver_raw/aw-base64.h
-#	new file:   lwip-1.4.1/apps/httpserver_raw/aw-sha1.h
-#	new file:   lwip-1.4.1/apps/httpserver_raw/websockd.c
-#	new file:   lwip-1.4.1/apps/httpserver_raw/websockd.h
-#	new file:   lwip-1.4.1/cwebsock/aw-base64.h
-#	new file:   lwip-1.4.1/cwebsock/aw-sha1.h
-#	new file:   lwip-1.4.1/cwebsock/websocket.c
-#	new file:   lwip-1.4.1/cwebsock/websocket.h
-#	new file:   lwip-1.4.1/libwebsock/Makefile.am
-#	new file:   lwip-1.4.1/libwebsock/api.c
-#	new file:   lwip-1.4.1/libwebsock/api.h
-#	new file:   lwip-1.4.1/libwebsock/base64.c
-#	new file:   lwip-1.4.1/libwebsock/base64.h
-#	new file:   lwip-1.4.1/libwebsock/config.h
-#	new file:   lwip-1.4.1/libwebsock/config.h.in
-#	new file:   lwip-1.4.1/libwebsock/default_callbacks.c
-#	new file:   lwip-1.4.1/libwebsock/default_callbacks.h
-#	new file:   lwip-1.4.1/libwebsock/frames.c
-#	new file:   lwip-1.4.1/libwebsock/frames.h
-#	new file:   lwip-1.4.1/libwebsock/openssl.c
-#	new file:   lwip-1.4.1/libwebsock/sha1.c
-#	new file:   lwip-1.4.1/libwebsock/sha1.h
-#	new file:   lwip-1.4.1/libwebsock/stamp-h2
-#	new file:   lwip-1.4.1/libwebsock/types.h
-#	new file:   lwip-1.4.1/libwebsock/utf.c
-#	new file:   lwip-1.4.1/libwebsock/utf.h
-#	new file:   lwip-1.4.1/libwebsock/util.c
-#	new file:   lwip-1.4.1/libwebsock/util.h
-#	new file:   lwip-1.4.1/libwebsock/websock.c
-#	new file:   lwip-1.4.1/libwebsock/websock.h
-#	new file:   lwip-1.4.1/libwebsock/websock_config.h
-#	new file:   lwip-1.4.1/libwebsock/websock_config.h.in
-#	modified:   lwip-1.4.1/src/core/netif.c
-#	modified:   lwip-1.4.1/src/core/tcp.c
-#	modified:   lwip-1.4.1/src/include/lwip/opt.h
-#
-# Changes not staged for commit:
-#   (use "git add <file>..." to update what will be committed)
-#   (use "git checkout -- <file>..." to discard changes in working directory)
-#
-#	modified:   git.txt
-#
+commit f9622c45f625c6358d6dcfcf9014ed48e52bb81f
+Author: vinifr <viniciusfre@gmail.com>
+Date:   Sat May 30 19:18:20 2015 -0300
+
+    A more stable version
+    Removed several warnings and bugs
+
+commit e3c059ae370fdc5b70b656547fba13c10a8be0b4
+Author: vinifr <viniciusfre@gmail.com>
+Date:   Sat May 30 10:34:46 2015 -0300
+
+    Remove annoying warnings
+
+commit 6ef99eff6c0662c6f7b9c16588ec07791e9b1672
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 21:14:01 2015 -0300
+
+    Correçao de erros de compilacao
+    
+    Erros de compilação
+
+commit c66469f45a53e6412b20af4617a9ecf99f5dab67
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 14:43:59 2015 -0300
+
+    Update websockd.c
+
+commit b74385df000f58d0c593ff2bfb53ac81e199728f
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 14:15:43 2015 -0300
+
+    Correção da escrita de bytes em websock_send
+
+commit beba1333124db08c8c04ab225074f825e549a0e1
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 14:10:52 2015 -0300
+
+    Alterado o print dados para enviar
+
+commit a10e6e2971ec5a627b180950c78236ed3d071c0a
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 14:07:11 2015 -0300
+
+    Reescrita da função websock_recv
+
+commit cada6a8936a37533169fd12f47b34cc270eb309d
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 13:51:48 2015 -0300
+
+    Reescrita da função websock_sent
+
+commit 5e110280ba65105de0fdd374ad2cc81a87c1e366
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 13:31:41 2015 -0300
+
+    Reescrita da função websock_send
+
+commit 5ec98bf7fbfa0e4db8af17a09059c3f7d4c054a9
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 10:25:04 2015 -0300
+
+    Alterações 01
+
+commit 45ba0daef04cc288b774f896a7ff722814c99941
+Merge: 530b880 fbd077d
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Thu May 28 09:58:44 2015 -0300
+
+    Merge pull request #1 from vinifr/regis
+    
+    Merge Regis em Teste
+
+commit fbd077d9ebd87ebe0b757b7ca56aa00ae346f215
+Author: regis <regis.ngr@gmail.com>
+Date:   Thu May 28 06:07:56 2015 -0300
+
+    add websock_close_conn()
+
+commit 82f04e1da6fae9edcb5fcb9fc9df9b7e3b1f8b29
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Wed May 27 21:55:45 2015 -0300
+
+    Chamadas a função websock_close_conn()
+    
+    Adição de chamadas a função websock_close_conn() onde deveria ser chamado http_close_conn()
+
+commit 056f0a12eb42fbbf685cbeb5621e581b99f24b7d
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Wed May 27 21:46:02 2015 -0300
+
+    Envio do frame close
+    
+    Adicionado a função websock_send() para o envio do frame close pra fechar a conexão na camada Websocket
+
+commit e05719b06dbdb1cdc975d3fa8aa36fd97cd666ae
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Wed May 27 21:40:51 2015 -0300
+
+    Implementação da função websock_close_conn
+    
+    Função websock_close_conn para fechar a conexão tcp
+
+commit c1873362102b2c8597e5d9a0637f153755a5c6c3
+Author: regis <regis.ngr@gmail.com>
+Date:   Wed May 27 19:57:51 2015 -0300
+
+    closing with tcp_abort
+
+commit 530b8803553979ba8cf3060207611a0c3aaf1701
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Fri Apr 24 16:51:26 2015 -0300
+
+    sys_mbox_free - fix bug
+    
+    Frees mbox memory previously allocated in array mboxes[]
+
+commit 2133d5533d31cbd9c7cb5ecd3398dc25bbc8e037
+Author: Vinicius Maciel <viniciusfre@gmail.com>
+Date:   Fri Apr 24 16:48:20 2015 -0300
+
+    sys_sem_free - fix bug
+    
+    Frees semaphore memory previously allocated in array sems
+
+commit 2881d65d73a312cb8172ff6aca607924b3044a72
+Author: vinifr <viniciusfre@gmail.com>
+Date:   Wed Apr 15 00:10:20 2015 -0300
+
+    Biblioteca da UART
+    
+    Biblioteca de printf(), funcao Uartprintf()
+
+commit ab1a7d9a76b02bb90d54dde78fe8810e0e296cf2
+Author: Bendik S. Søvegjarto <bendik@sovegjarto.com>
+Date:   Tue Apr 7 16:18:00 2015 +0200
+
+    initial commit
