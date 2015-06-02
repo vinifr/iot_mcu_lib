@@ -89,7 +89,8 @@ enum wsFrameType { // errors starting from 0xF0
 enum wsState {
     WS_STATE_OPENING,
     WS_STATE_NORMAL,
-    WS_STATE_CLOSING
+    WS_STATE_CLOSING,
+    WS_STATE_UNKNOW
 };
 
 struct handshake {
