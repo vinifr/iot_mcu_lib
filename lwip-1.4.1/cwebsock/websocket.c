@@ -34,7 +34,7 @@
 #include "lwip/stats.h"
 
 #define MAXLN		512
-#define ISSPACE		" "
+#define ISSPACE		" \t\n\r\f\v"
 
 static char rn[] PROGMEM = "\r\n";
 
