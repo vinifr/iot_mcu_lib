@@ -300,8 +300,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
 {
     const char *inputPtr = (const char *)inputFrame;
     const char *endPtr = (const char *)inputFrame + inputLength;
-
-    UARTprintf("\nwsParseHandshake\n");
+    
     //UARTprintf(inputFrame);
 
     if (!strstr((const char *)inputFrame, "\r\n\r\n")) {
@@ -310,6 +309,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
 	
     if (memcmp_P(inputFrame, PSTR("GET "), 4) != 0)
         return WS_ERROR_FRAME;
+    
     // measure resource size
     char *first = strchr((const char *)inputFrame, ' ');
     if (!first)
@@ -323,12 +323,13 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         mem_free(hs->resource);
         hs->resource = NULL;
     }
+    UARTprintf("\nwsParseHandshake\n");
+    
     hs->resource = (char *)mem_malloc(second - first + 1); // +1 is for \x00 symbol
     //assert(hs->resource);
 
     if (Wsscanf(inputPtr, PSTR("GET %s HTTP/1.1\r\n"), hs->resource) != 1)
         return WS_ERROR_FRAME;
-    //strcat(hs->resource,"/echo");
     
     inputPtr = strstr_P(inputPtr, rn) + 2;
 
