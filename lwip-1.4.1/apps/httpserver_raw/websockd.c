@@ -188,7 +188,7 @@ websock_send(struct tcp_pcb *pcb, struct websock_state *hs)
   if(len > (2 * mss)) {
     len = 2 * mss;
   }
- err = websock_write(pcb, hs->frame, &len, TCP_WRITE_FLAG_COPY);
+  err = websock_write(pcb, hs->frame, &len, TCP_WRITE_FLAG_COPY);
   if (err == ERR_OK) {
     data_to_send = true;
     hs->frame += len;
