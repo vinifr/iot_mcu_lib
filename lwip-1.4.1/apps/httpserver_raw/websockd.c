@@ -32,6 +32,7 @@ struct websock_state {
   struct fs_file file_handle;
   struct fs_file *handle;
   char *file;       /* Pointer to first unsent byte in buf. */
+  char sent_close;
 
   struct tcp_pcb *pcb;
   uint8_t *buf;        /* File read buffer. */
@@ -63,6 +64,7 @@ TimerHandle_t ws_timeout_timer;
 uint8_t gBuffer[BUF_LEN];
 uint8_t flag_sent = 0;
 size_t frameSize;
+u8_t retries;
 static enum wsFrameType frameType;
 
 void error(const char *msg)
@@ -228,22 +230,25 @@ websock_err(void *arg, err_t err)
 static err_t
 websock_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
 {
-  struct websock_state *hs = (struct websock_state *)arg;
+    struct websock_state *hs = (struct websock_state *)arg;
 
-  //LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_sent %p\n", (void*)pcb));
+    //LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_sent %p\n", (void*)pcb));
 
-  //LWIP_UNUSED_ARG(len);
-  UARTprintf("\nwebsock_sent\n");
+    //LWIP_UNUSED_ARG(len);
+    UARTprintf("\nwebsock_sent\n");
 
-  if (hs == NULL || hs->left == 0) {
+    if (hs == NULL || hs->left == 0) {      
+	if (hs->sent_close) // A CLOSING_FRAME was sent 
+	{
+	    hs->sent_close = 0;
+	    websock_close_conn(pcb, hs, 0);	    
+	}
+	return ERR_OK;
+    }
+    retries = 0;
+    websock_send(pcb, hs);
+
     return ERR_OK;
-  }
-
-  hs->retries = 0;
-
-  websock_send(pcb, hs);
-
-  return ERR_OK;
 }
 
 /**
@@ -275,9 +280,9 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 #endif /* LWIP_HTTPD_ABORT_ON_CLOSE_MEM_ERROR */
     return ERR_OK;
   } else {
-    hs->retries++;
-    if (hs->retries == 4 && !hs->left) {
-	hs->retries = 0;
+    retries++;
+    if (retries == 8 && !hs->left) {
+	retries = 0;
 	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: PING FRAME\n"));
 	//websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
 	prepareBuffer;           
@@ -348,18 +353,23 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
           strcat((char *)gBuffer,version);    
           strcat((char *)gBuffer,"\r\n\r\n\0");       
           frameSize = strlen((char *)gBuffer);	  
-	  wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);
-	  whs->left = frameSize;	  
-          //safeSend(clientSocket, *whs->buf, frameSize);
+	  //wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);
+	  whs->left = frameSize;
+	
+	  if (hs.resource) { //////// NECESSARIO PARA CORRIGIR ERRO!!!!!!!!!!!!!!!!!
+	    mem_free(hs.resource);
+	    hs.resource = NULL;
+	   }
+	  //state = WS_STATE_CLOSING;
+	  initNewFrame;
 
           return ERR_OK; //break;
       } else {
           prepareBuffer;
-          UARTprintf("\n!WS_STATE_OPENING");	  
+          UARTprintf("\nERROR, Sending CLOSE Frame\n");	  
           wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-          //if (safeSend(clientSocket, whs->buf, frameSize) == EXIT_FAILURE)
-            //return ERR_MEM;//break;
 	  whs->left = frameSize;
+	  whs->sent_close = 1;
           state = WS_STATE_CLOSING;
           initNewFrame;
       }
@@ -367,12 +377,10 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
   
   if (state == WS_STATE_OPENING) {   
     if (frameType == WS_OPENING_FRAME) {
-      //UARTprintf("\nWS_OPENING_FRAME");
       // if resource is right, generate answer handshake and send it
-      if (strcmp(hs.resource, "/echo") != 0) {
+      if (strcmp(hs.resource, "/echo") != 0) { // OBS: TESTE SOH FUNCIONA AS VEZES!!!!!!!!!!!!!!
           frameSize = sprintf((char*)gBuffer, "HTTP/1.1 404 Not Found\r\n\r\n");
-	  wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);
-          //safeSend(clientSocket, hs->buf, frameSize);	  
+	  //wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);          
 	  whs->left = frameSize;
           return ERR_OK;//break;
       }
@@ -413,6 +421,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
       prepareBuffer;
       wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_TEXT_FRAME);
       whs->left = frameSize;
+      retries = 0;
       free(recievedString);
       //if (safeSend(clientSocket, hs->buf, frameSize) == EXIT_FAILURE)
           //return ERR_MEM;//break;
@@ -436,6 +445,8 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   //UARTprintf("\nhttp_recv: pcb=%p pbuf=%p err=%s len=%d\n", (void*)pcb,
   //           (void*)p, lwip_strerr(err),p->tot_len);
 
+  hs->sent_close = 0;
+  
   if ((err != ERR_OK) || (p == NULL) || (hs == NULL)) {
     /* error or closed by other side? */
     if (p != NULL) {
@@ -582,6 +593,7 @@ void
 websockd_init(void)
 {
   websockd_init_addr(IP_ADDR_ANY);
+  retries = 0;
 
   /* Create the timeout timer */
   ws_timeout_timer = xTimerCreate("Timeout", (2500 / portTICK_PERIOD_MS), pdFALSE, NULL, ws_timeout_callback);
