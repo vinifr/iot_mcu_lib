@@ -258,7 +258,6 @@ websock_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
  *
  * This could be increased, but we don't want to waste resources for bad connections.
  */
-#if LWIP_WEBSOCKDPING
 static err_t
 websock_poll(void *arg, struct tcp_pcb *pcb)
 {
@@ -283,6 +282,8 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
     retries++;
     if (retries == 8 && !hs->left) {
 	retries = 0;
+	
+	#if LWIP_WEBSOCKDPING
 	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: PING FRAME\n"));
 	//websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
 	prepareBuffer;           
@@ -291,6 +292,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 	hs->frame = gBuffer;
 	websock_send(pcb, hs);
 	initNewFrame;
+	#endif
 	
       return ERR_OK;
     }
@@ -311,7 +313,6 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 
   return ERR_OK;
 }
-#endif
 
 static err_t
 websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_pcb *pcb)
