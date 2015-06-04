@@ -35,6 +35,7 @@
 #include "lwip/tcp.h"
 #include "lwip/debug.h"
 #include "lwip/stats.h"
+#include "lwip/err.h"
 #include "lwipopts.h"
 
 #define MAXLN		512
@@ -279,7 +280,11 @@ void freeHandshake(struct handshake *hs)
     }
     if (hs->key) {
         free(hs->key); //mem_free(hs->key); PROBLEMA??????????
+    }    
+    if (hs->protocols) {
+        free(hs->protocols);
     }
+    
     nullHandshake(hs);
 }
 
@@ -359,7 +364,8 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         } else
         if (memcmp_P(inputPtr, protocolField, strlen_P(protocolField)) == 0) {
             inputPtr += strlen_P(protocolField);
-            subprotocolFlag = TRUE;
+	    hs->protocols = getUptoLinefeed(inputPtr);
+            subprotocolFlag = TRUE;	// Does not accept sub-protocol for now!!!
         } else
         if (memcmp_P(inputPtr, keyField, strlen_P(keyField)) == 0) {
             inputPtr += strlen_P(keyField);
@@ -399,10 +405,12 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
     }
 
     // we have read all data, so check them
-    if (!hs->host || !hs->key || !connectionFlag || !upgradeFlag /*|| subprotocolFlag*/
+    if (!hs->host || !hs->key || !connectionFlag || !upgradeFlag || subprotocolFlag
         || versionMismatch)
     {
 	LWIP_DEBUGF(WEBSOCKD_DEBUG,("Error in Open frame\n"));
+	if (subprotocolFlag)
+	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("Does not accept sub-protocol\n"));
         hs->frameType = WS_ERROR_FRAME;
     } else {
         hs->frameType = WS_OPENING_FRAME;
@@ -420,14 +428,10 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
 
     char *responseKey = NULL;
     
-    //memcpy(hs->key,"x3JJHMbDL1EzLkh9GBhXDw==\0",25);
-    //UARTprintf("\nkey: %s",hs->key);
-    
     uint8_t length = strlen(hs->key)+strlen_P(secret);
     responseKey = malloc(length);
     memcpy(responseKey, hs->key, strlen(hs->key));
     memcpy_P(&(responseKey[strlen(hs->key)]), secret, strlen_P(secret));
-    //UARTprintf("\nkey+secret: %s",responseKey);
     unsigned char shaHash[20];
     memset(shaHash, 0, sizeof(shaHash));
     sha1(shaHash, responseKey, length);
@@ -442,10 +446,15 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     strcat((char *)outFrame,"\r\n");
     strcat((char *)outFrame,connectionField);
     strcat((char *)outFrame,upgrade2);
-    strcat((char *)outFrame,"\r\n");
+    strcat((char *)outFrame,"\r\n");        
     strcat((char *)outFrame,"Sec-WebSocket-Accept: ");
     strcat((char *)outFrame,responseKey);
     strcat((char *)outFrame,"\r\n\r\n\0");
+    // Accepted protocols - test!!!!!
+    //if (hs->protocols) {
+    //strcat((char *)outFrame, hs->protocols);    
+    //strcat((char *)outFrame,"\r\n");
+    //}    
     written = strlen((char *)outFrame);
 	
     free(responseKey);
@@ -454,7 +463,7 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     *outLength = written;
 }
 
-void wsMakeFrame(const uint8_t *data, size_t dataLength,
+int wsMakeFrame(const uint8_t *data, size_t dataLength,
                  uint8_t *outFrame, size_t *outLength, enum wsFrameType frameType)
 {
     //assert(outFrame && *outLength);
@@ -474,9 +483,12 @@ void wsMakeFrame(const uint8_t *data, size_t dataLength,
         *outLength = 4;
     } else {
         //assert(dataLength <= 0xFFFF);        
+        return (ERR_MEM);
     }
     memcpy(&outFrame[*outLength], data, dataLength);
     *outLength+= dataLength;
+    
+    return 0;
 }
 
 static size_t getPayloadLength(const uint8_t *inputFrame, size_t inputLength,

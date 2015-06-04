@@ -286,12 +286,15 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 	#if LWIP_WEBSOCKDPING
 	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: PING FRAME\n"));
 	//websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
-	prepareBuffer;           
-	wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PING_FRAME);
-	hs->left = frameSize;
-	hs->frame = gBuffer;
-	websock_send(pcb, hs);
-	initNewFrame;
+	prepareBuffer;
+	if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PING_FRAME) == ERR_OK)
+	{
+	    hs->left = frameSize;
+	    hs->frame = gBuffer;
+	    websock_send(pcb, hs);
+	    initNewFrame;
+	}
+	else return ERR_INPROGRESS;
 	#endif
 	
       return ERR_OK;
@@ -300,12 +303,11 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
     /* If this connection has a file open, try to send some more data. If
      * it has not yet received a GET request, don't do this since it will
      * cause the connection to close immediately. */
-    if(hs && (hs->handle)) {
+    if(hs && (hs->handle || hs->left)) {
       LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_poll: try to send more data\n"));
       if(websock_send(pcb, hs)) {
         /* If we wrote anything to be sent, go ahead and send it now. */
         LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("tcp_output\n"));
-        //UARTprintf("\ntcp_output(pcb)");
         tcp_output(pcb);        
       }
     }
@@ -369,11 +371,14 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	} else {
 	    prepareBuffer;
 	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nERROR, Sending CLOSE Frame\n"));
-	    wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-	    whs->left = frameSize;
-	    whs->sent_close = 1;
-	    state = WS_STATE_CLOSING;
-	    initNewFrame;
+	    if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME) == ERR_OK)
+	    {
+		whs->left = frameSize;
+		whs->sent_close = 1;
+		state = WS_STATE_CLOSING;
+		initNewFrame;
+	    } else
+		return ERR_INPROGRESS;
 	}
     }
   
@@ -405,20 +410,26 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	case WS_CLOSING_FRAME: 
 	{
 	    //LWIP_DEBUGF(WEBSOCKD_DEBUG,("\n>WS_CLOSING_FRAME"));
-	    prepareBuffer;
-	    wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-	    whs->left = frameSize;
-	    whs->sent_close = 1;
-	    state = WS_STATE_OPENING;
-	    initNewFrame;	    
+	    prepareBuffer;	    
+	    if(wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME) == ERR_OK)
+	    {
+		whs->left = frameSize;
+		whs->sent_close = 1;
+		state = WS_STATE_OPENING;
+		initNewFrame;	    
+	    } else
+		return ERR_INPROGRESS;
 	    break;
 	}
-	case WS_PONG_FRAME:
+	case WS_PING_FRAME:
 	{
 	    prepareBuffer;
-	    wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PONG_FRAME);
-	    whs->left = frameSize;
-	    initNewFrame;
+	    if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PONG_FRAME) == ERR_OK)
+	    {
+		whs->left = frameSize;
+		initNewFrame;
+	    } else
+		return ERR_INPROGRESS;
 	    break;
 	}
 	case WS_TEXT_FRAME: 
@@ -430,13 +441,32 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	    recievedString[ dataSize ] = 0;
 	    
 	    prepareBuffer;
-	    wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_TEXT_FRAME);
-	    whs->left = frameSize;
-	    retries = 0;
-	    free(recievedString);
-	    //if (safeSend(clientSocket, hs->buf, frameSize) == EXIT_FAILURE)
-		//return ERR_MEM;//break;
-	    initNewFrame;
+	    if (wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_TEXT_FRAME) == ERR_OK)
+	    {
+		whs->left = frameSize;
+		retries = 0;
+		free(recievedString);		
+		initNewFrame;
+	    } else
+		return ERR_INPROGRESS;
+	    break;
+	}
+	case WS_BINARY_FRAME: 
+	{
+	    uint8_t *recievedString = NULL;
+	    recievedString = malloc(dataSize+1);
+	    memcpy(recievedString, data, dataSize);
+	    recievedString[ dataSize ] = 0;
+	    
+	    prepareBuffer;
+	    if (wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_BINARY_FRAME) == ERR_OK)
+	    {
+		whs->left = frameSize;
+		retries = 0;
+		free(recievedString);		
+		initNewFrame;
+	    } else
+		return ERR_INPROGRESS;
 	    break;
 	}
     }  
