@@ -35,6 +35,7 @@
 #include "lwip/tcp.h"
 #include "lwip/debug.h"
 #include "lwip/stats.h"
+#include "lwipopts.h"
 
 #define MAXLN		512
 #define ISSPACE		" \t\n\r\f\v"
@@ -323,13 +324,16 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         mem_free(hs->resource);
         hs->resource = NULL;
     }
-    UARTprintf("\nwsParseHandshake\n");
+    LWIP_DEBUGF(WEBSOCKD_DEBUG, ("\nHandshake: Inicial tests OK\n"));
     
     hs->resource = (char *)mem_malloc(second - first + 1); // +1 is for \x00 symbol
     //assert(hs->resource);
 
     if (Wsscanf(inputPtr, PSTR("GET %s HTTP/1.1\r\n"), hs->resource) != 1)
+    {
+	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("Error in Wsscanf\n"));
         return WS_ERROR_FRAME;
+    }
     
     inputPtr = strstr_P(inputPtr, rn) + 2;
 
@@ -395,9 +399,10 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
     }
 
     // we have read all data, so check them
-    if (!hs->host || !hs->key || !connectionFlag || !upgradeFlag || subprotocolFlag
+    if (!hs->host || !hs->key || !connectionFlag || !upgradeFlag /*|| subprotocolFlag*/
         || versionMismatch)
     {
+	LWIP_DEBUGF(WEBSOCKD_DEBUG,("Error in Open frame\n"));
         hs->frameType = WS_ERROR_FRAME;
     } else {
         hs->frameType = WS_OPENING_FRAME;

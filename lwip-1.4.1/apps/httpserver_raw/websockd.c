@@ -316,125 +316,130 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 static err_t
 websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_pcb *pcb)
 {
-  //err_t err;
-  size_t readedLength = 0;  
-  static enum wsState state = WS_STATE_OPENING;
-  uint8_t *data = NULL;
-  size_t dataSize = 0;  
-  static struct handshake hs;
-  struct pbuf *p = *inp;
-  //int clientSocket = 1;
-  nullHandshake(&hs);
-  frameType = WS_INCOMPLETE_FRAME;
-  
-  readedLength+= p->tot_len;
-  whs->buf = (uint8_t *)mem_malloc(readedLength); 
-  whs->frame = gBuffer;
-      
-  memcpy(whs->buf, p->payload, p->tot_len);
-  if (state == WS_STATE_OPENING) {
-    frameType = wsParseHandshake(whs->buf, readedLength, &hs);
-  } else {
-    frameType = wsParseInputFrame(whs->buf, readedLength, &data, &dataSize);
-  }
-  
-  LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nframeType = %02X\n",frameType));  
-  mem_free(whs->buf);
-  
-  if ((frameType == WS_INCOMPLETE_FRAME && readedLength == BUF_LEN) || frameType == WS_ERROR_FRAME) {
-      if (frameType == WS_INCOMPLETE_FRAME)
-          LWIP_DEBUGF(WEBSOCKD_DEBUG,("buffer too small"));
-      else
-          LWIP_DEBUGF(WEBSOCKD_DEBUG,("Error in incoming frame\n"));
-      
-      if (state == WS_STATE_OPENING) {
-          prepareBuffer;          
-          strcat((char *)gBuffer,"HTTP/1.1 400 Bad Request\r\n");
-          strcat((char *)gBuffer,versionField);
-          strcat((char *)gBuffer,version);    
-          strcat((char *)gBuffer,"\r\n\r\n\0");       
-          frameSize = strlen((char *)gBuffer);	  
-	  //wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);
-	  whs->left = frameSize;
+    //err_t err;
+    size_t readedLength = 0;  
+    static enum wsState state = WS_STATE_OPENING;
+    uint8_t *data = NULL;
+    size_t dataSize = 0;  
+    static struct handshake hs;
+    struct pbuf *p = *inp;
+    //int clientSocket = 1;
+    nullHandshake(&hs);
+    frameType = WS_INCOMPLETE_FRAME;
+
+    readedLength+= p->tot_len;
+    whs->buf = (uint8_t *)mem_malloc(readedLength); 
+    whs->frame = gBuffer;
 	
-	  if (hs.resource) { //////// NECESSARIO PARA CORRIGIR ERRO!!!!!!
+    memcpy(whs->buf, p->payload, p->tot_len);
+    if (state == WS_STATE_OPENING) {
+    frameType = wsParseHandshake(whs->buf, readedLength, &hs);
+    } else {
+    frameType = wsParseInputFrame(whs->buf, readedLength, &data, &dataSize);
+    }
+
+    LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nframeType = %02X\n",frameType));  
+    mem_free(whs->buf);
+  
+    if ((frameType == WS_INCOMPLETE_FRAME && readedLength == BUF_LEN) || frameType == WS_ERROR_FRAME) {
+	if (frameType == WS_INCOMPLETE_FRAME)
+	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("buffer too small"));
+	else
+	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("Error in incoming frame\n"));
+	
+	if (state == WS_STATE_OPENING) {
+	    prepareBuffer;          
+	    strcat((char *)gBuffer,"HTTP/1.1 400 Bad Request\r\n");
+	    strcat((char *)gBuffer,versionField);
+	    strcat((char *)gBuffer,version);    
+	    strcat((char *)gBuffer,"\r\n\r\n\0");       
+	    frameSize = strlen((char *)gBuffer);	  
+	    //wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);
+	    whs->left = frameSize;
+	
+	    if (hs.resource) { //////// NECESSARIO PARA CORRIGIR ERRO!!!!!!
 	    mem_free(hs.resource);
 	    hs.resource = NULL;
-	   }
-	  //state = WS_STATE_CLOSING;
-	  initNewFrame;
+	    }
+	    //state = WS_STATE_CLOSING;
+	    initNewFrame;
 
-          return ERR_OK; //break;
-      } else {
-          prepareBuffer;
-          LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nERROR, Sending CLOSE Frame\n"));
-          wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-	  whs->left = frameSize;
-	  whs->sent_close = 1;
-          state = WS_STATE_CLOSING;
-          initNewFrame;
-      }
-  }
+	    return ERR_OK; //break;
+	} else {
+	    prepareBuffer;
+	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nERROR, Sending CLOSE Frame\n"));
+	    wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
+	    whs->left = frameSize;
+	    whs->sent_close = 1;
+	    state = WS_STATE_CLOSING;
+	    initNewFrame;
+	}
+    }
   
-  if (state == WS_STATE_OPENING) {   
-    if (frameType == WS_OPENING_FRAME) {
-	
-	//LWIP_DEBUGF(WEBSOCKD_DEBUG,("hs.resource: %s\n\n", hs.resource));
-	// if resource is right, generate answer handshake and send it
-	// Types of accepted requests
-	if ( (strcmp(hs.resource, "/echo") && 
-	  strcmp(hs.resource, "/") &&	  
-	  strcmp(hs.resource, "/?encoding=text")) != 0) {
-          frameSize = sprintf((char*)gBuffer, "HTTP/1.1 404 Not Found\r\n\r\n");
-	  //wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);          
-	  whs->left = frameSize;
-          return ERR_OK;//break;
-      }
-      
-      prepareBuffer;
-      wsGetHandshakeAnswer(&hs, gBuffer, &frameSize);
-      freeHandshake(&hs);
-      whs->left = frameSize;          
-      state = WS_STATE_NORMAL;
-      initNewFrame;
-    }
-  } else {
-    if (frameType == WS_CLOSING_FRAME) {
-	
-      //LWIP_DEBUGF(WEBSOCKD_DEBUG,("\n>WS_CLOSING_FRAME"));      
-      if (state == WS_STATE_CLOSING) {
-        LWIP_DEBUGF(WEBSOCKD_DEBUG,("WS_STATE_CLOSING"));
-        return ERR_MEM;//break;
-      } else {
-        flag_sent = 1;
-        prepareBuffer;
-        wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
-	whs->left = frameSize;
-	whs->sent_close = 1;
-        state = WS_STATE_OPENING;
-        initNewFrame;
-        //websock_close_conn(pcb, whs, 0); //tcp_abort(pcb);
-      }
-    } else if (frameType == WS_TEXT_FRAME) {
-      uint8_t *recievedString = NULL;
-      recievedString = malloc(dataSize+1);
-      //assert(recievedString);
-      memcpy(recievedString, data, dataSize);
-      recievedString[ dataSize ] = 0;
-      
-      prepareBuffer;
-      wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_TEXT_FRAME);
-      whs->left = frameSize;
-      retries = 0;
-      free(recievedString);
-      //if (safeSend(clientSocket, hs->buf, frameSize) == EXIT_FAILURE)
-          //return ERR_MEM;//break;
-      initNewFrame;
-    }
-    //UARTprintf("!!!");
-  }
-  //UARTprintf("...");
-  return ERR_OK;
+    //if (state == WS_STATE_OPENING) {	
+    switch (frameType) {
+	case WS_OPENING_FRAME:
+	{
+	    if (state == WS_STATE_OPENING) {
+		//LWIP_DEBUGF(WEBSOCKD_DEBUG,("hs.resource: %s\n\n", hs.resource));
+		// if resource is right, generate answer handshake and send it
+		// Types of accepted requests
+		if ( (strcmp(hs.resource, "/echo") && 
+		    strcmp(hs.resource, "/") &&	  
+		    strcmp(hs.resource, "/?encoding=text")) != 0) {
+		    frameSize = sprintf((char*)gBuffer, "HTTP/1.1 404 Not Found\r\n\r\n");
+		    //wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);          
+		    whs->left = frameSize;
+		    break; //ERR_OK
+		}      
+		prepareBuffer;
+		wsGetHandshakeAnswer(&hs, gBuffer, &frameSize);
+		freeHandshake(&hs);
+		whs->left = frameSize;          
+		state = WS_STATE_NORMAL;
+		initNewFrame;
+	    }
+	    break;
+	}
+	case WS_CLOSING_FRAME: 
+	{
+	    //LWIP_DEBUGF(WEBSOCKD_DEBUG,("\n>WS_CLOSING_FRAME"));
+	    prepareBuffer;
+	    wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME);
+	    whs->left = frameSize;
+	    whs->sent_close = 1;
+	    state = WS_STATE_OPENING;
+	    initNewFrame;	    
+	    break;
+	}
+	case WS_PONG_FRAME:
+	{
+	    prepareBuffer;
+	    wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PONG_FRAME);
+	    whs->left = frameSize;
+	    initNewFrame;
+	    break;
+	}
+	case WS_TEXT_FRAME: 
+	{
+	    uint8_t *recievedString = NULL;
+	    recievedString = malloc(dataSize+1);
+	    //assert(recievedString);
+	    memcpy(recievedString, data, dataSize);
+	    recievedString[ dataSize ] = 0;
+	    
+	    prepareBuffer;
+	    wsMakeFrame(recievedString, dataSize, gBuffer, &frameSize, WS_TEXT_FRAME);
+	    whs->left = frameSize;
+	    retries = 0;
+	    free(recievedString);
+	    //if (safeSend(clientSocket, hs->buf, frameSize) == EXIT_FAILURE)
+		//return ERR_MEM;//break;
+	    initNewFrame;
+	    break;
+	}
+    }  
+    return ERR_OK;
 }
 
 /**
