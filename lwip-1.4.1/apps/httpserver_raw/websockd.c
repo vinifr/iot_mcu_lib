@@ -383,7 +383,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
   
     //if (state == WS_STATE_OPENING) {
     switch (frameType) {
-		case WS_OPENING_FRAME:
+	case WS_OPENING_FRAME:
 		{
 			if (state == WS_STATE_OPENING) {
 			//LWIP_DEBUGF(WEBSOCKD_DEBUG,("hs.resource: %s\n\n", hs.resource));
