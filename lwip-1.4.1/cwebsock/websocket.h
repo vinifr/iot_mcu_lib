@@ -100,6 +100,7 @@ struct handshake {
     char *resource;
     char *protocols;
     enum wsFrameType frameType;
+    int id;
 };
 
     /**
@@ -116,7 +117,7 @@ struct handshake {
      * @param outFrame Pointer to frame buffer
      * @param outLength Length of frame buffer. Return length of out frame
      */
-    void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
+    void wsGetHandshakeAnswer(struct handshake *hs, uint8_t *outFrame,
                               size_t *outLength);
 
     /**

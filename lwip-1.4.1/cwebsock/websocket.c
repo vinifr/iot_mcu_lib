@@ -41,6 +41,14 @@
 #define MAXLN		512
 #define ISSPACE		" \t\n\r\f\v"
 
+
+// List of protocols supported
+char *subprotocols[] = {
+    "chat",
+    "superchat",
+    "echo-protocol"
+};
+
 static char rn[] PROGMEM = "\r\n";
 
 static char * _getbase __P((char *, int *));
@@ -258,6 +266,22 @@ int Wsscanf (const char *buf, const char *fmt, ...)
     return (count);
 }
 
+int findSubprotocol(char *s, int *id)
+{
+    int len = sizeof(subprotocols)/sizeof(subprotocols[0]);
+    int i;
+
+    for(i = 0; i < len; ++i)
+    {
+	if(!strcmp(subprotocols[i], s))
+	{
+	    *id = i;
+	    LWIP_DEBUGF(WEBSOCKD_DEBUG, ("Subprotocol supported %d\n",i));
+	    return 0;
+	}
+    }
+    return -1;
+}
 void nullHandshake(struct handshake *hs)
 {
     hs->host = NULL;
@@ -349,7 +373,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
     #define strtolower(x) do { int i; for (i = 0; x[i]; i++) x[i] = tolower(x[i]); } while(0)
     uint8_t connectionFlag = FALSE;
     uint8_t upgradeFlag = FALSE;
-    uint8_t subprotocolFlag = FALSE;
+    uint8_t subprotocolFlag = FALSE, subprotocolError = FALSE;
     uint8_t versionMismatch = FALSE;
     while (inputPtr < endPtr && inputPtr[0] != '\r' && inputPtr[1] != '\n') {
         if (memcmp_P(inputPtr, hostField, strlen_P(hostField)) == 0) {
@@ -365,7 +389,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         if (memcmp_P(inputPtr, protocolField, strlen_P(protocolField)) == 0) {
             inputPtr += strlen_P(protocolField);
 			hs->protocols = getUptoLinefeed(inputPtr);
-            subprotocolFlag = TRUE;	// Does not accept sub-protocol for now!!!
+            subprotocolFlag = TRUE;
         } else
         if (memcmp_P(inputPtr, keyField, strlen_P(keyField)) == 0) {
             inputPtr += strlen_P(keyField);
@@ -404,13 +428,16 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         inputPtr = strstr_P(inputPtr, rn) + 2;
     }
 
+   if (subprotocolFlag)
+       subprotocolError = findSubprotocol(hs->protocols, &hs->id);
+
     // we have read all data, so check them
-    if (!hs->host || !hs->key || !connectionFlag || !upgradeFlag || subprotocolFlag
+    if (!hs->host || !hs->key || !connectionFlag || !upgradeFlag || subprotocolError
         || versionMismatch)
     {
 	LWIP_DEBUGF(WEBSOCKD_DEBUG,("Error in Open frame\n"));
-	if (subprotocolFlag)
-	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("Does not accept sub-protocol\n"));
+	if (subprotocolError)
+	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("Sub-protocol not supported\n"));
         hs->frameType = WS_ERROR_FRAME;
     } else {
         hs->frameType = WS_OPENING_FRAME;
@@ -419,7 +446,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
     return hs->frameType;
 }
 
-void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame, 
+void wsGetHandshakeAnswer( struct handshake *hs, uint8_t *outFrame,
                           size_t *outLength)
 {
     //assert(outFrame && *outLength);
@@ -449,15 +476,16 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     strcat((char *)outFrame,"\r\n");        
     strcat((char *)outFrame,"Sec-WebSocket-Accept: ");
     strcat((char *)outFrame,responseKey);
+    if (hs->protocols) {
+	strcat((char *)outFrame,"\r\n");
+	strcat((char *)outFrame,"Sec-WebSocket-Protocol: ");
+	strcat((char *)outFrame, subprotocols[hs->id]);
+    }
     strcat((char *)outFrame,"\r\n\r\n\0");
-    // Accepted protocols - test!!!!!
-    //if (hs->protocols) {
-    //strcat((char *)outFrame, hs->protocols);
-    //strcat((char *)outFrame,"\r\n");
-    //}
     written = strlen((char *)outFrame);
 	
     free(responseKey);
+    hs->protocols = NULL;
     // if assert fail, that means, that we corrupt memory
     //assert(written <= *outLength);
     *outLength = written;
@@ -466,10 +494,10 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
 int wsMakeFrame(const uint8_t *data, size_t dataLength,
                  uint8_t *outFrame, size_t *outLength, enum wsFrameType frameType)
 {
-    assert(outFrame && *outLength);
+    //assert(outFrame && *outLength);
     //assert(frameType < 0x10);
-    if (dataLength > 0)
-        assert(data);
+    //if (dataLength > 0)
+        //assert(data);
 
     outFrame[0] = 0x80 | frameType;
 

@@ -412,7 +412,6 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 		case WS_CLOSING_FRAME: 
 		{
 			//LWIP_DEBUGF(WEBSOCKD_DEBUG,("\n>WS_CLOSING_FRAME"));
-			whs->echo_mode = 0;
 			prepareBuffer;
 			if(wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME) == ERR_OK)
 			{
@@ -528,9 +527,7 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 
   if (parsed == ERR_OK) {
     //LWIP_DEBUGF(WEBSOCKD_DEBUG | LWIP_DBG_TRACE, ("websock_recv: data %p len %"S32_F"\n", hs->file, hs->left));
-	  if (whs->echo_mode) {
-		websock_send(pcb, hs);
-	  }
+	  websock_send(pcb, hs);
   } else if (parsed == ERR_ARG) {
     /* @todo: close on ERR_USE? */
     websock_close_conn(pcb, hs, 0);
@@ -566,7 +563,7 @@ static err_t websockd_accept(void *arg, struct tcp_pcb *pcb, err_t err) // (void
   struct tcp_pcb_listen *lpcb = (struct tcp_pcb_listen*)arg;
   (void)lpcb;
   //LWIP_UNUSED_ARG(err);
-  LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_accept %p / %p\n", (void*)pcb, arg));
+  //LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_accept %p / %p\n", (void*)pcb, arg));
 
   /* Decrease the listen backlog counter */
   tcp_accepted(lpcb);
