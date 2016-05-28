@@ -445,7 +445,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	    {
 		whs->left = frameSize;
 		retries = 0;
-		free(recievedString);		
+		free(recievedString);
 		initNewFrame;
 	    } else
 		return ERR_INPROGRESS;
