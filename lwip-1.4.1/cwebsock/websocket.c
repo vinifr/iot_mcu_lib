@@ -270,21 +270,21 @@ void nullHandshake(struct handshake *hs)
 void freeHandshake(struct handshake *hs)
 {
     if (hs->host) {
-        free(hs->host); //mem_free(hs->host); PROBLEMA??????????
+        free(hs->host);
     }
     if (hs->origin) {
-        free(hs->origin); //mem_free(hs->origin); PROBLEMA??????????
+        free(hs->origin);
     }
     if (hs->resource) {
-        mem_free(hs->resource); //PROBLEMA??????????
+        mem_free(hs->resource);
     }
     if (hs->key) {
-        free(hs->key); //mem_free(hs->key); PROBLEMA??????????
-    }    
+        free(hs->key);
+    }
     if (hs->protocols) {
         free(hs->protocols);
     }
-    
+
     nullHandshake(hs);
 }
 
@@ -306,7 +306,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
 {
     const char *inputPtr = (const char *)inputFrame;
     const char *endPtr = (const char *)inputFrame + inputLength;
-    
+
     //UARTprintf(inputFrame);
 
     if (!strstr((const char *)inputFrame, "\r\n\r\n")) {
@@ -330,16 +330,16 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         hs->resource = NULL;
     }
     LWIP_DEBUGF(WEBSOCKD_DEBUG, ("\nHandshake: Inicial tests OK\n"));
-    
+
     hs->resource = (char *)mem_malloc(second - first + 1); // +1 is for \x00 symbol
     //assert(hs->resource);
 
     if (Wsscanf(inputPtr, PSTR("GET %s HTTP/1.1\r\n"), hs->resource) != 1)
     {
-	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("Error in Wsscanf\n"));
+		LWIP_DEBUGF(WEBSOCKD_DEBUG, ("Error in Wsscanf\n"));
         return WS_ERROR_FRAME;
     }
-    
+
     inputPtr = strstr_P(inputPtr, rn) + 2;
 
     /*
@@ -364,7 +364,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         } else
         if (memcmp_P(inputPtr, protocolField, strlen_P(protocolField)) == 0) {
             inputPtr += strlen_P(protocolField);
-	    hs->protocols = getUptoLinefeed(inputPtr);
+			hs->protocols = getUptoLinefeed(inputPtr);
             subprotocolFlag = TRUE;	// Does not accept sub-protocol for now!!!
         } else
         if (memcmp_P(inputPtr, keyField, strlen_P(keyField)) == 0) {
@@ -427,7 +427,7 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     //assert(hs && hs->key);
 
     char *responseKey = NULL;
-    
+
     uint8_t length = strlen(hs->key)+strlen_P(secret);
     responseKey = malloc(length);
     memcpy(responseKey, hs->key, strlen(hs->key));
@@ -452,9 +452,9 @@ void wsGetHandshakeAnswer(const struct handshake *hs, uint8_t *outFrame,
     strcat((char *)outFrame,"\r\n\r\n\0");
     // Accepted protocols - test!!!!!
     //if (hs->protocols) {
-    //strcat((char *)outFrame, hs->protocols);    
+    //strcat((char *)outFrame, hs->protocols);
     //strcat((char *)outFrame,"\r\n");
-    //}    
+    //}
     written = strlen((char *)outFrame);
 	
     free(responseKey);
@@ -470,9 +470,9 @@ int wsMakeFrame(const uint8_t *data, size_t dataLength,
     //assert(frameType < 0x10);
     //if (dataLength > 0)
     //    assert(data);
-	
+
     outFrame[0] = 0x80 | frameType;
-    
+
     if (dataLength <= 125) {
         outFrame[1] = dataLength;
         *outLength = 2;
@@ -482,7 +482,7 @@ int wsMakeFrame(const uint8_t *data, size_t dataLength,
         memcpy(&outFrame[2], &payloadLength16b, 2);
         *outLength = 4;
     } else {
-        //assert(dataLength <= 0xFFFF);        
+        //assert(dataLength <= 0xFFFF);
         return (ERR_MEM);
     }
     memcpy(&outFrame[*outLength], data, dataLength);
