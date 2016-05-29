@@ -1,0 +1,7 @@
+data/rpc.h.i
+data/example.c.i
+data/rpc.c.i
+data/build.i
+data/LICENSE.i
+data/README.md.i
+data/echo.json_command.i

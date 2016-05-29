@@ -1,6 +1,8 @@
 #ifndef __JSMN_H_
 #define __JSMN_H_
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,7 +27,7 @@ typedef enum {
 	/* Invalid character inside JSON string */
 	JSMN_ERROR_INVAL = -2,
 	/* The string is not a full JSON packet, more bytes expected */
-	JSMN_ERROR_PART = -3,
+	JSMN_ERROR_PART = -3
 } jsmnerr_t;
 
 /**
@@ -39,6 +41,8 @@ typedef struct {
 	int start;
 	int end;
 	int size;
+	int first_child;
+	int next_sibling;
 #ifdef JSMN_PARENT_LINKS
 	int parent;
 #endif
