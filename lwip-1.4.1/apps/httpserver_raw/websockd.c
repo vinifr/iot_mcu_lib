@@ -52,11 +52,9 @@ static err_t websock_poll(void *arg, struct tcp_pcb *pcb);
 volatile char ws_uuid_lock[36] = {0};
 TimerHandle_t ws_timeout_timer;
 
-//#define PORT 8088
 #define BUF_LEN 512//0xFFFF
 #define PACKET_DUMP
 
-#define prepareBuffer frameSize = BUF_LEN; memset(gBuffer, 0, sizeof(gBuffer));
 #define initNewFrame frameType = WS_INCOMPLETE_FRAME;
 
 uint8_t gBuffer[BUF_LEN];
@@ -64,6 +62,14 @@ uint8_t flag_sent = 0;
 size_t frameSize;
 u8_t retries;
 static enum wsFrameType frameType;
+
+
+static void
+prepareBuffer(void)
+{
+	frameSize = BUF_LEN;
+	memset(gBuffer, 0, sizeof(gBuffer));
+}
 
 void error(const char *msg)
 {
@@ -114,6 +120,12 @@ websock_close_conn(struct tcp_pcb *pcb, struct websock_state *hs, uint8_t abort_
     tcp_poll(pcb, websock_poll, 4/*HTTPD_POLL_INTERVAL*/);
   }
   return err;
+}
+
+static err_t
+websock_queue_frame(uint8_t *data, size_t dataLength,
+                 uint8_t *outFrame, size_t *outLength, enum wsFrameType frameType)
+{
 }
 
 static err_t
@@ -266,7 +278,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
     /* arg is null, close. */
     LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: arg is NULL, close\n"));
     websock_close_conn(pcb, NULL, 0);
-    //LWIP_UNUSED_ARG(closed);
+
 #if LWIP_HTTPD_ABORT_ON_CLOSE_MEM_ERROR
     if (closed == ERR_MEM) {
        tcp_abort(pcb);
@@ -282,8 +294,7 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 	
 	#if LWIP_WEBSOCKDPING
 	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: PING FRAME\n"));
-	//websock_close_conn(pcb, hs, 0); //??http_close_conn(pcb, hs);
-	prepareBuffer;
+	prepareBuffer();
 	if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PING_FRAME) == ERR_OK)
 	{
 	    hs->left = frameSize;
@@ -291,7 +302,8 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
 	    websock_send(pcb, hs);
 	    initNewFrame;
 	}
-	else return ERR_INPROGRESS;
+	else
+		return ERR_INPROGRESS;
 	#endif
 	
       //return ERR_OK;
@@ -311,6 +323,93 @@ websock_poll(void *arg, struct tcp_pcb *pcb)
   }
 
   return ERR_OK;
+}
+
+int
+libwebsock_ping(struct websock_state *state)
+{
+	LWIP_DEBUGF(WEBSOCKD_DEBUG, ("websock_poll: PING FRAME\n"));
+	prepareBuffer();
+	if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PING_FRAME) == ERR_OK)
+	{
+	    state->left = frameSize;
+	    state->frame = gBuffer;
+	    websock_send(pcb, state);
+	    initNewFrame;
+	}
+	else
+		return ERR_INPROGRESS;
+	return ERR_OK;
+}
+
+int
+libwebsock_pong(struct websock_state *state)
+{
+	prepareBuffer();
+	if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PONG_FRAME) == ERR_OK)
+	{
+		state->left = frameSize;
+		initNewFrame;
+	} else
+		return ERR_INPROGRESS;
+	return ERR_OK;
+}
+
+int
+libwebsock_close(struct websock_state *state)
+{
+	//enum wsState state;
+	prepareBuffer();
+	if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME) == ERR_OK)
+	{
+		state->left = frameSize;
+		state->sent_close = 1;
+		//state = WS_STATE_CLOSING;
+		initNewFrame;
+	} else
+		return ERR_INPROGRESS;
+	return ERR_OK;
+}
+
+int
+libwebsock_close_with_reason(struct websock_state *state, unsigned short code, const char *reason)
+{
+	unsigned int len;
+    unsigned short code_be;
+    int ret;
+    char buf[128]; //w3 spec on WebSockets API (http://dev.w3.org/html5/websockets/) says reason shouldn't be over 123 bytes.
+    len = 2;
+    code_be = htobe16(code);
+    memcpy(buf, &code_be, 2);
+    if (reason) {
+        len += snprintf(buf + 2, 124, "%s", reason); // Avoid buffer overflow by safely copying
+    }
+    //int flags = WS_FRAGMENT_FIN | WS_OPCODE_CLOSE;
+    //ret = libwebsock_send_fragment(state, buf, len, flags);
+    //state->flags |= STATE_SENT_CLOSE_FRAME;
+	/******************************************/
+}
+
+int
+libwebsock_send_text_with_length(struct websock_state *state, char *strdata, unsigned int payload_len)
+{
+    int flags = WS_FRAGMENT_FIN | WS_OPCODE_TEXT;
+    return libwebsock_send_fragment(state, strdata, payload_len, flags);
+}
+
+int
+libwebsock_send_text(struct websock_state *state, char *strdata)
+{
+    unsigned int len = strlen(strdata);
+    int flags = WS_FRAGMENT_FIN | WS_OPCODE_TEXT;
+    return libwebsock_send_fragment(state, strdata, len, flags);
+}
+
+int
+libwebsock_send_binary(struct websock_state *state, char *in_data, unsigned int payload_len)
+{
+    int flags = WS_FRAGMENT_FIN | WS_OPCODE_BINARY;
+    return libwebsock_send_fragment(state, in_data, payload_len, flags);
 }
 
 static err_t
@@ -337,9 +436,9 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	frameType = wsParseInputFrame(whs->buf, readedLength, &data, &dataSize);
     }
 
-    LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nframeType = %02X\n",frameType));  
+    LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nframeType = %02X\n",frameType));
     mem_free(whs->buf);
-  
+
     if ((frameType == WS_INCOMPLETE_FRAME && readedLength == BUF_LEN) || frameType == WS_ERROR_FRAME) {
 	if (frameType == WS_INCOMPLETE_FRAME)
 	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("buffer too small"));
@@ -347,26 +446,26 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("Error in incoming frame\n"));
 	
 	if (state == WS_STATE_OPENING) {
-	    prepareBuffer;
-	    strcat((char *)gBuffer,"HTTP/1.1 400 Bad Request\r\n");
-	    strcat((char *)gBuffer,versionField);
-	    strcat((char *)gBuffer,version);
-	    strcat((char *)gBuffer,"\r\n\r\n\0");
-	    frameSize = strlen((char *)gBuffer);
-	    //wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);
-	    whs->left = frameSize;
-	
-	    if (hs.resource) {
+		// Send bad request answer
+	    prepareBuffer();
+		strcat((char *)gBuffer,"HTTP/1.1 400 Bad Request\r\n");
+		strcat((char *)gBuffer,versionField);
+		strcat((char *)gBuffer,version);
+		strcat((char *)gBuffer,"\r\n\r\n\0");
+		frameSize = strlen((char *)gBuffer);
+		whs->left = frameSize;
+		//initNewFrame;
+
+		if (hs.resource) {
 			mem_free(hs.resource);
 			hs.resource = NULL;
-	    }
-	    //state = WS_STATE_CLOSING;
-	    initNewFrame;
-
+		}
 	    return ERR_OK; //break;
 	} else {
-	    prepareBuffer;
 	    LWIP_DEBUGF(WEBSOCKD_DEBUG,("\nERROR, Sending CLOSE Frame\n"));
+		
+		/*
+		prepareBuffer();
 	    if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME) == ERR_OK)
 	    {
 		whs->left = frameSize;
@@ -376,34 +475,40 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	    } else
 		return ERR_INPROGRESS;
 	    }
+	    */
+		state = WS_STATE_CLOSING;
+		err = libwebsock_close(whs);
     }
-  
+
     //if (state == WS_STATE_OPENING) {
     switch (frameType) {
 	case WS_OPENING_FRAME:
 	{
 	    if (state == WS_STATE_OPENING) {
-		//LWIP_DEBUGF(WEBSOCKD_DEBUG,("hs.resource: %s\n\n", hs.resource));
-		// if resource is right, generate answer handshake and send it
-		// Types of accepted requests
-		if ( (strcmp(hs.resource, "/echo") &&
-			strcmp(hs.resource, "/") &&
-			strcmp(hs.resource, "/?encoding=text")) != 0) {
-			frameSize = sprintf((char*)gBuffer, "HTTP/1.1 404 Not Found\r\n\r\n");
-			//wsMakeFrame(NULL, frameSize, gBuffer, &frameSize, WS_TEXT_FRAME);
+			//LWIP_DEBUGF(WEBSOCKD_DEBUG,("hs.resource: %s\n\n", hs.resource));
+			
+			// if resource is right, generate answer handshake and send it
+			// Types of accepted requests
+			if ( (strcmp(hs.resource, "/echo") &&
+				strcmp(hs.resource, "/") &&
+				strcmp(hs.resource, "/?encoding=text")) != 0) {
+				// Send error 404
+				frameSize = sprintf((char*)gBuffer, "HTTP/1.1 404 Not Found\r\n\r\n");
+				whs->left = frameSize;
+				err = ERR_OK;
+				break; //ERR_OK
+			}
+			if ( !strcmp(hs.resource, "/echo")) {
+				whs->echo_mode = 1;
+			}
+
+			wsGetHandshakeAnswer(&hs, gBuffer, &frameSize);
+			freeHandshake(&hs);
+			// Send handshake answer
+			prepareBuffer();
 			whs->left = frameSize;
-			err = ERR_OK;
-			break; //ERR_OK
-		}
-		if ( !strcmp(hs.resource, "/echo")) {
-			whs->echo_mode = 1;
-		}
-		prepareBuffer;
-		wsGetHandshakeAnswer(&hs, gBuffer, &frameSize);
-		freeHandshake(&hs);
-		whs->left = frameSize;
-		state = WS_STATE_NORMAL;
-		initNewFrame;
+			state = WS_STATE_NORMAL;
+			initNewFrame;
 	    } else
 		err = ERR_INPROGRESS;
 	    break;
@@ -411,7 +516,9 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	case WS_CLOSING_FRAME: 
 	{
 	    //LWIP_DEBUGF(WEBSOCKD_DEBUG,("\n>WS_CLOSING_FRAME"));
-	    prepareBuffer;
+		err = libwebsock_close(whs);
+	    /*
+		prepareBuffer();
 	    if(wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME) == ERR_OK)
 	    {
 		    whs->left = frameSize;
@@ -421,11 +528,13 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 		    err = ERR_OK;
 	    } else
 	    err = ERR_INPROGRESS;
+		*/
 	    break;
 	}
 	case WS_PING_FRAME:
 	{
-	    prepareBuffer;
+		/*
+	    prepareBuffer();
 	    if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_PONG_FRAME) == ERR_OK)
 	    {
 		whs->left = frameSize;
@@ -433,6 +542,8 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 		err = ERR_OK;
 	    } else
 		err = ERR_INPROGRESS;
+		*/
+		err = libwebsock_ping(whs);
 	    break;
 	}
 	case WS_TEXT_FRAME:
@@ -467,7 +578,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	    recievedString = malloc(dataSize+1);
 	    memcpy(recievedString, data, dataSize);
 	    recievedString[ dataSize ] = 0;
-	    
+
 	    if (whs->echo_mode)
 	    {
 		    prepareBuffer;
@@ -601,7 +712,7 @@ static err_t websockd_accept(void *arg, struct tcp_pcb *pcb, err_t err) // (void
   return ERR_OK;
 }
 /**
- * Initialize the httpd with the specified local address.
+ * Initialize the websocket with the specified local address.
  */
 static void
 websockd_init_addr(ip_addr_t *local_addr)
@@ -633,11 +744,13 @@ websockd_init(void)
   retries = 0;
 
   /* Create the timeout timer */
-  ws_timeout_timer = xTimerCreate("Timeout", (2500 / portTICK_PERIOD_MS), pdFALSE, NULL, ws_timeout_callback);
+  //ws_timeout_timer = xTimerCreate("Timeout", (2500 / portTICK_PERIOD_MS), pdFALSE, NULL, ws_timeout_callback);
 
   /* TODO: replace with assert */
+  /*
   if (ws_timeout_timer == NULL) {
       send_debug_message( "Could not create timer." , DEBUG_MESSAGE_DEFAULT );
   }
+  */
 }
 
