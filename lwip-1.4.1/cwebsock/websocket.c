@@ -326,28 +326,36 @@ static char* getUptoLinefeed(const char *startFrom)
 }
 
 enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
-                                  struct handshake *hs)
+                                  struct handshake *hs, int *err_code)
 {
     const char *inputPtr = (const char *)inputFrame;
     const char *endPtr = (const char *)inputFrame + inputLength;
+    *err_code = 0;
 
     //UARTprintf(inputFrame);
 
     if (!strstr((const char *)inputFrame, "\r\n\r\n")) {
+	*err_code = 1;
         return WS_INCOMPLETE_FRAME;
     }
 	
-    if (memcmp_P(inputFrame, PSTR("GET "), 4) != 0)
+    if (memcmp_P(inputFrame, PSTR("GET "), 4) != 0) {
+	*err_code = 2;
         return WS_ERROR_FRAME;
+    }
     
     // measure resource size
     char *first = strchr((const char *)inputFrame, ' ');
-    if (!first)
+    if (!first) {
+	*err_code = 3;
         return WS_ERROR_FRAME;
+    }
     first++;
     char *second = strchr(first, ' ');
-    if (!second)
+    if (!second) {
+	*err_code = 4;
         return WS_ERROR_FRAME;
+    }
 
     if (hs->resource) {
         mem_free(hs->resource);
@@ -547,21 +555,31 @@ static size_t getPayloadLength(const uint8_t *inputFrame, size_t inputLength,
 }
 
 enum wsFrameType wsParseInputFrame(uint8_t *inputFrame, size_t inputLength,
-                                   uint8_t **dataPtr, size_t *dataLength)
+                                   uint8_t **dataPtr, size_t *dataLength, int *err_code)
 {
     //assert(inputFrame && inputLength);
+    
+    *err_code = 0;
 
     UARTprintf("\nwsParseInputFrame");
 
-    if (inputLength < 2)
+    if (inputLength < 2) {
+	*err_code = 1;
         return WS_INCOMPLETE_FRAME;
+    }
 	
-    if ((inputFrame[0] & 0x70) != 0x0) // checks extensions off
+    if ((inputFrame[0] & 0x70) != 0x0) { // checks extensions off
+	*err_code = 2;
         return WS_ERROR_FRAME;
-    if ((inputFrame[0] & 0x80) != 0x80) // we haven't continuation frames support
+    }
+    if ((inputFrame[0] & 0x80) != 0x80) { // we haven't continuation frames support
+	*err_code = 3;
         return WS_ERROR_FRAME; // so, fin flag must be set
-    if ((inputFrame[1] & 0x80) != 0x80) // checks masking bit
+    }
+    if ((inputFrame[1] & 0x80) != 0x80) { // checks masking bit
+	*err_code = 4;
         return WS_ERROR_FRAME;
+    }
 
     uint8_t opcode = inputFrame[0] & 0x0F;
     if (opcode == WS_TEXT_FRAME ||

@@ -110,7 +110,7 @@ struct handshake {
      * @return Type of parsed frame
      */
     enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
-                                      struct handshake *hs);
+                                      struct handshake *hs, int *err_code);
 	
     /**
      * @param hs Filled handshake structure
@@ -140,7 +140,7 @@ struct handshake {
      * @return Type of parsed frame
      */
     enum wsFrameType wsParseInputFrame(uint8_t *inputFrame, size_t inputLength,
-                                       uint8_t **dataPtr, size_t *dataLength);
+                                       uint8_t **dataPtr, size_t *dataLength, int *err_code);
 
     /**
      * @param hs NULL handshake structure
