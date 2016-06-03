@@ -18,7 +18,7 @@
 // -------------------------- PRINTING ------------------------------------- //
 // Define your `printf` implementation (printf, uart_printf, ...)
 //extern uart_context_t* g_psDBGUARTCtx;
-#define DEBUG_PRINTF(...)	UARTprintf(__VA_ARGS__)
+#define DEBUG_PRINTF(...)	//UARTprintf(__VA_ARGS__)
 
 
 // ------------------------ GLOBALS ----------------------------------------- //
@@ -55,6 +55,7 @@ static const char JRPC_NULL[]         = "null";
 
 // ------------------------ FUNCTIONS --------------------------------------- //
 
+#ifdef DUMP
 // -------------------------------------------------------------------------- //
 //
 // Recursively prints the token tree rooted at 'uiSelf'.
@@ -116,7 +117,7 @@ depth_first_dump(const char* const pcJson, jsmntok_t* psToks, unsigned int uiSel
         }
     }
 }
-
+#endif
 
 // -------------------------------------------------------------------------- //
 //
@@ -558,26 +559,31 @@ rpc_handle_command(const char* const pcCommand, int iCommandLen,
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
+    UARTprintf("step 1\n");
 
     eStatus = rpc_validate_rpc(pcCommand);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
+    UARTprintf("step 2\n");
 
     eStatus = rpc_validate_method(pcCommand, &iMethod);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
+    UARTprintf("step 3\n");
 
     eStatus = rpc_validate_params(pcCommand, iMethod);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
+    UARTprintf("step 4\n");
 
     eStatus = rpc_call_method(pcCommand, iMethod, pcResponse, iRespMaxLen);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
+    UARTprintf("step 5\n");
 
     //TODO: validate fuction-returned json?
     //We know that there is no error triggered so far
