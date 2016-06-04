@@ -6,13 +6,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * JSON type identifier. Basic types are:
  * 	o Object
  * 	o Array
  * 	o String
  * 	o Other primitive: number, boolean (true/false) or null
+ *        (almost) anything made of ascii[32..127] and not in quotation marks
  */
 typedef enum {
 	JSMN_PRIMITIVE = 0,
@@ -41,10 +41,12 @@ typedef struct {
 	int start;
 	int end;
 	int size;
-	int first_child;
-	int next_sibling;
 #ifdef JSMN_PARENT_LINKS
 	int parent;
+#endif
+#ifdef JSMN_FIRST_CHILD_NEXT_SIBLING
+    int first_child;
+    int next_sibling;
 #endif
 } jsmntok_t;
 
@@ -66,6 +68,10 @@ void jsmn_init(jsmn_parser *parser);
 /**
  * Run JSON parser. It parses a JSON data string into and array of tokens, each describing
  * a single JSON object.
+ *
+ * len does not include the terminating null
+ *
+ * returns error code OR number of tokes found
  */
 jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 		jsmntok_t *tokens, unsigned int num_tokens);

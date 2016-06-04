@@ -1,3 +1,18 @@
+Note from azimoff:
+====
+This my fork of zserge's JSMN JSON parser. I added `first_child` and `next_sibling` "links" to each `jsmntok_t` structure, such that the token set can be traversed as a tree. This allows convenient processing of `OBJECT` and `ARRAY` types and makes `key-value` associations much easier to handle. The mod is activated via the `JSMN_FIRST_CHILD_NEXT_SIBLING` define. It is independent of `JSMN_PARENT_LINKS`, and can be used alone or together.
+
+Also included is an example that shows how to traverse a JSON token tree in depth-first order. Compile and run like this:
+
+```
+#!sh
+$cd jsmn/example
+$gcc -std=c99 -g -DJSMN_FIRST_CHILD_NEXTSIBLING child_sibling_demo.c ../jsmn.c
+$./a.out < sample.json
+```
+
+I use this mod in my JSONRPC implementation that is built on top of JSMN. The JSONRPC library can be found [here](https://bitbucket.org/azimoff/jsmn-rpc)
+
 
 JSMN
 ====

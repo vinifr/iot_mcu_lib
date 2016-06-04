@@ -103,7 +103,7 @@ depth_first_dump(const char* const pcJson, jsmntok_t* psToks, unsigned int uiSel
             DEBUG_PRINTF("  (primitive, ");
             break;
         default:
-            assert(0);
+            assert(0);	// Todo: Fix assert function
     }
     DEBUG_PRINTF("size: %d, start: %d, end: %d, first child: %d, next sibling: %d)\n",
             psToks[uiSelf].size, psToks[uiSelf].start, psToks[uiSelf].end,
@@ -559,31 +559,26 @@ rpc_handle_command(const char* const pcCommand, int iCommandLen,
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
-    UARTprintf("step 1\n");
 
     eStatus = rpc_validate_rpc(pcCommand);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
-    UARTprintf("step 2\n");
 
     eStatus = rpc_validate_method(pcCommand, &iMethod);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
-    UARTprintf("step 3\n");
 
     eStatus = rpc_validate_params(pcCommand, iMethod);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
-    UARTprintf("step 4\n");
 
     eStatus = rpc_call_method(pcCommand, iMethod, pcResponse, iRespMaxLen);
     if (eStatus != WORKSTATUS_NO_ERROR) {
         goto L_done;
     }
-    UARTprintf("step 5\n");
 
     //TODO: validate fuction-returned json?
     //We know that there is no error triggered so far
