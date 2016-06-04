@@ -653,7 +653,7 @@ libwebsock_close(void)
 	if (wsMakeFrame(NULL, 0, gBuffer, &frameSize, WS_CLOSING_FRAME) == ERR_OK)
 	{
 		//state->size = frameSize;
-		//state->sent_close = 1;
+		g_state->sent_close = 1;
 		libwebsock_send_tcp(gBuffer, frameSize);
 		initNewFrame;
 	} else
