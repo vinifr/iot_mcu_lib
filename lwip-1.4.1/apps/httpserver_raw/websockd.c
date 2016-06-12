@@ -307,7 +307,7 @@ websock_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   //           (void*)p, lwip_strerr(err),p->tot_len);
 
   hs->sent_close = 0;
-  g_state = hs;
+  //g_state = hs;
 
   if ((err != ERR_OK) || (p == NULL) || (hs == NULL)) {
     /* error or closed by other side? */
@@ -397,6 +397,8 @@ static err_t websockd_accept(void *arg, struct tcp_pcb *pcb, err_t err) // (void
     return ERR_MEM;
   }
   hs->pcb = pcb;
+  // Store state in global variable
+  g_state = hs;
 
   /* Tell TCP that this is the structure we wish to be passed for our
      callbacks. */
@@ -664,7 +666,7 @@ libwebsock_close(void)
 int
 libwebsock_close_with_reason(unsigned short code, const char *reason)
 {
-    unsigned int len;
+    /*unsigned int len;
     unsigned short code_be;
     //int ret;
     char buf[128]; //w3 spec on WebSockets API (http://dev.w3.org/html5/websockets/) says reason shouldn't be over 123 bytes.
@@ -673,7 +675,7 @@ libwebsock_close_with_reason(unsigned short code, const char *reason)
     memcpy(buf, &code_be, 2);
     if (reason) {
         len += snprintf(buf + 2, 124, "%s", reason); // Avoid buffer overflow by safely copying
-    }
+    }*/
     //int flags = WS_FRAGMENT_FIN | WS_OPCODE_CLOSE;
     //ret = libwebsock_send_fragment(state, buf, len, flags);
     //state->flags |= STATE_SENT_CLOSE_FRAME;
