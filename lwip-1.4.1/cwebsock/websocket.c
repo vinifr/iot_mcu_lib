@@ -180,7 +180,7 @@ enum wsFrameType wsParseHandshake(const uint8_t *inputFrame, size_t inputLength,
         } else
         if (memcmp_P(inputPtr, protocolField, strlen_P(protocolField)) == 0) {
             inputPtr += strlen_P(protocolField);
-			hs->protocols = getUptoLinefeed(inputPtr);
+	    hs->protocols = getUptoLinefeed(inputPtr);
             subprotocolFlag = TRUE;
         } else
         if (memcmp_P(inputPtr, keyField, strlen_P(keyField)) == 0) {

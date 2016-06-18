@@ -550,7 +550,7 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	case WS_TEXT_FRAME:
 	{
 	    uint8_t *recievedString = NULL;
-	    recievedString = malloc(dataSize+1);
+	    recievedString = mem_malloc(dataSize+1);
 	    //assert(recievedString);
 	    memcpy(recievedString, data, dataSize);
 	    recievedString[ dataSize ] = 0;
@@ -563,21 +563,22 @@ websock_parse_request(struct pbuf **inp, struct websock_state *whs, struct tcp_p
 	    } else
 	    {
 		websocket_get_data((char *)recievedString, dataSize);
-	    }    
+	    }
+	    mem_free(recievedString);
 	    initNewFrame;
 	    break;
 	}
 	case WS_BINARY_FRAME:
 	{
 	    uint8_t *recievedString = NULL;
-	    recievedString = malloc(dataSize+1);
+	    recievedString = mem_malloc(dataSize+1);
 	    memcpy(recievedString, data, dataSize);
 	    recievedString[ dataSize ] = 0;
 	    //whs->allocated = 1;
 
 	    libwebsock_send_binary(recievedString, dataSize);
 	    websocket_get_data((char *)recievedString, dataSize);
-
+	    mem_free(recievedString);
 	    initNewFrame;
 	    break;
 	}
