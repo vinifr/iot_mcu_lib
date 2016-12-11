@@ -44,7 +44,7 @@ extern "C" {
         const char t[64] PROGMEM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         size_t i, m = base64len(n);
         unsigned x;
-        UARTprintf("\n[nbuf=%d  n=%d  m=%d]",nbuf,n,m);
+        //UARTprintf("\n[nbuf=%d  n=%d  m=%d\n]",nbuf,n,m);
         if (nbuf >= m)
             for (i = 0; i < n; ++i) {
                 x = p[i] << 0x10;

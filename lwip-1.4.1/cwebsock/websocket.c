@@ -345,7 +345,7 @@ enum wsFrameType wsParseInputFrame(uint8_t *inputFrame, size_t inputLength,
     
     *err_code = 0;
 
-    UARTprintf("\nwsParseInputFrame");
+    //UARTprintf("\nwsParseInputFrame");
 
     if (inputLength < 2) {
 	*err_code = 1;
